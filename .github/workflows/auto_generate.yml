@@ -38,10 +38,17 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: '3.11'
-
+          
+      - name: デバッグ（ID確認）
+        env:
+          DMM_AFFILIATE_ID: ${{ secrets.DMM_AFFILIATE_ID }}
+        run: |
+          echo "AF_IDの長さ: ${#DMM_AFFILIATE_ID}"
+          python -c "import os; aid=os.environ.get('DMM_AFFILIATE_ID',''); print('設定あり' if aid else '未設定')"
+          
       - name: 依存ライブラリをインストール
         run: pip install requests
-
+        
       - name: X投稿文を生成
         env:
           DMM_API_ID:       ${{ secrets.DMM_API_ID }}
