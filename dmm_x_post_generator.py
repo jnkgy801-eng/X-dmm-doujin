@@ -15,8 +15,8 @@ import requests
 # ================================================================
 
 DMM_API_ID       = os.environ.get('DMM_API_ID', '')
-DMM_AFFILIATE_ID = os.environ.get('DMM_AFFILIATE_ID', '')
-
+"DMM_AFFILIATE_ID = os.environ.get('DMM_AFFILIATE_ID', '')
+DMM_AFFILIATE_ID = "dmmkennsuke-990"
 if not DMM_API_ID or not DMM_AFFILIATE_ID:
     print('❌ 環境変数 DMM_API_ID / DMM_AFFILIATE_ID が設定されていません。')
     sys.exit(1)
