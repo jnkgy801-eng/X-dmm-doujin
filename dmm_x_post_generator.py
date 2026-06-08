@@ -59,7 +59,7 @@ def fetch_dmm_products():
     service, floor_name = FLOOR_SERVICE_MAP.get(DMM_FLOOR, ('digital', 'videoa'))
     params = {
         'api_id':       DMM_API_ID,
-        'affiliate_id': "dmmkennsuke-002",
+        'affiliate_id': DMM_AFFILIATE_ID,
         'site':         'FANZA',
         'service':      service,
         'floor':        floor_name,
