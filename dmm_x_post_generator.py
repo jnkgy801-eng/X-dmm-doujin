@@ -173,20 +173,26 @@ def build_x_post(product):
     return text
 
 # ================================================================
-# 💾 デスクトップへの保存
+# 💾 デスクトップへの保存（修正箇所）
 # ================================================================
 
 def get_save_dir():
-    """保存先ディレクトリを返す（デスクトップ優先）"""
-    # デスクトップのパスを試す
+    """保存先ディレクトリを返す（確実にデスクトップを特定）"""
+    home = Path.home()
+    
+    # 探索するデスクトップ候補（OneDrive環境や日本語環境を考慮）
     candidates = [
-        os.path.join(os.path.expanduser('~'), 'Desktop'),
-        os.path.join(os.path.expanduser('~'), 'デスクトップ'),
-        os.path.expanduser('~'),  # フォールバック
+        home / "Desktop",                  # 標準的なデスクトップ
+        home / "OneDrive" / "Desktop",     # WindowsでOneDrive同期している場合
+        home / "OneDrive" / "デスクトップ",
+        home / "デスクトップ",              # 一部Linuxや古いWindows
     ]
+    
     for path in candidates:
-        if os.path.exists(path):
-            return path
+        if path.exists():
+            return str(path)
+            
+    # 見つからない場合は現在の実行フォルダ
     return '.'
 
 
