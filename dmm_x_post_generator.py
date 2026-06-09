@@ -43,13 +43,13 @@ FLOOR_SERVICE_MAP = {
 }
 
 HASHTAG_MAP = {
-    'videoa': '#FANZA #DMM #アダルト #PR #アフィリエイト #新着',
-    'videoc': '#FANZA #DMM #素人 #PR #アフィリエイト #新着',
-    'anime':  '#FANZA #DMM #アニメ #PR #アフィリエイト #新着',
-    'doujin': '#FANZA #DMM #同人 #PR #アフィリエイト #新着',
-    'comic':  '#DMM #電子書籍 #漫画 #PR #アフィリエイト #新着',
-    'goods':  '#DMM #グッズ #PR #アフィリエイト #新着',
-    'default': '#DMM #PR #アフィリエイト #新着',
+    'videoa': '#FANZA #DMM #アダルト #PR #新着',
+    'videoc': '#FANZA #DMM #素人 #PR #新着',
+    'anime':  '#FANZA #DMM #アニメ #PR #新着',
+    'doujin': '#FANZA #DMM #同人 #PR #新着',
+    'comic':  '#DMM #電子書籍 #漫画 #PR #新着',
+    'goods':  '#DMM #グッズ #PR #新着',
+    'default': '#DMM #PR #新着',
 }
 
 # ================================================================
@@ -151,7 +151,6 @@ def build_x_post(product):
     lines.append('✅ 詳細・購入はこちら👇')
     lines.append(url)
     lines.append('')
-    lines.append('※アフィリエイト広告')
     lines.append(hashtags)
 
     text = '\n'.join(lines)
@@ -167,7 +166,6 @@ def build_x_post(product):
         lines2.append('✅ 詳細はこちら👇')
         lines2.append(url)
         lines2.append('')
-        lines2.append('※アフィリエイト広告')
         lines2.append(hashtags)
         text = '\n'.join(lines2)
 
