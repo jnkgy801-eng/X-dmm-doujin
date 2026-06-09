@@ -79,7 +79,7 @@ def fetch_dmm_products():
             first = items[0]
             # ★ 変更後（URLそのものを出力せず、文字数と末尾の文字だけを出す）
             url_str = first.get('affiliateURL', '')
-            print(f"URLの総文字数: {len(url_str)} / 末尾4文字: {url_str[-4:]}")
+            print(f"URLの総文字数: {len(url_str)} / 末尾4文字: {url_str[-10:]}")
         
         print(f'  ✅ {len(items)} 件の商品を取得しました。')
         return items
