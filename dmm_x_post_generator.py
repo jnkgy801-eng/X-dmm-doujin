@@ -9,6 +9,7 @@ import sys
 import json
 import datetime
 import requests
+from pathlib import Path
 
 # ================================================================
 # ⚙️  設定（環境変数から読み込み）
@@ -173,26 +174,28 @@ def build_x_post(product):
     return text
 
 # ================================================================
-# 💾 デスクトップへの保存（修正箇所）
+# 💾 デスクトップへの保存
 # ================================================================
 
 def get_save_dir():
-    """保存先ディレクトリを返す（確実にデスクトップを特定）"""
-    home = Path.home()
-    
-    # 探索するデスクトップ候補（OneDrive環境や日本語環境を考慮）
-    candidates = [
-        home / "Desktop",                  # 標準的なデスクトップ
-        home / "OneDrive" / "Desktop",     # WindowsでOneDrive同期している場合
-        home / "OneDrive" / "デスクトップ",
-        home / "デスクトップ",              # 一部Linuxや古いWindows
-    ]
-    
-    for path in candidates:
-        if path.exists():
-            return str(path)
-            
-    # 見つからない場合は現在の実行フォルダ
+    """保存先ディレクトリを返す（確実にデスクトップを特定、なければ現在地）"""
+    try:
+        home = Path.home()
+        # 探索するデスクトップ候補
+        candidates = [
+            home / "Desktop",                  # 標準的なデスクトップ
+            home / "OneDrive" / "Desktop",     # Windows OneDrive環境
+            home / "OneDrive" / "デスクトップ",
+            home / "デスクトップ",              # 日本語Linuxなど
+        ]
+        
+        for path in candidates:
+            if path.exists():
+                return str(path)
+    except Exception:
+        pass
+        
+    # デスクトップが見つからない環境（GitHub Actionsなど）では、実行中のフォルダに保存
     return '.'
 
 
