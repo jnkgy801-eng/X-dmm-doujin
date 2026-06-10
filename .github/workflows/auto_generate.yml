@@ -1,67 +1,71 @@
-name: DMM → X投稿文 自動生成
+name: DMM X投稿文ジェネレーター
 
 on:
-  schedule:
-    # 毎日 8時・12時・18時（JST）に生成
-    # UTC: 23時・3時・9時
-    - cron: '0 23,3,9 * * *'
-
   workflow_dispatch:
     inputs:
+      post_start_index:
+        description: '取得開始番号（1始まり）例: 1→1〜20件目, 21→21〜40件目'
+        required: true
+        default: '1'
+        type: number
       dmm_floor:
-        description: 'DMMフロア（videoa / videoc / anime / doujin / comic / goods）'
+        description: 'フロア種別'
         required: false
         default: 'videoa'
+        type: choice
+        options:
+          - videoa
+          - videoc
+          - anime
+          - doujin
+          - comic
+          - goods
       dmm_sort:
-        description: 'ソート順（-date / rank / -price）'
+        description: 'ソート順'
         required: false
         default: '-date'
-      post_all:
-        description: '全件生成する場合は true'
-        required: false
-        default: 'false'
-      post_index:
-        description: '商品番号（0始まり）'
-        required: false
-        default: '0'
+        type: choice
+        options:
+          - '-date'    # 新着順
+          - '-rank'    # 人気順
+          - '-price'   # 価格高い順
+          - 'price'    # 価格安い順
+          - '-review'  # レビュー順
+
+  # スケジュール実行例（毎日9時に1〜20件目を自動生成）
+  # schedule:
+  #   - cron: '0 0 * * *'   # UTC 0:00 = JST 9:00
 
 jobs:
-  generate:
+  generate-posts:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
 
     steps:
       - name: リポジトリをチェックアウト
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
 
-      - name: Python 3.11 をセットアップ
-        uses: actions/setup-python@v6
+      - name: Python セットアップ
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          
-      - name: デバッグ（ID確認）
-        env:
-          DMM_AFFILIATE_ID: ${{ secrets.DMM_AFFILIATE_ID }}
-        run: |
-          echo "AF_IDの長さ: ${#DMM_AFFILIATE_ID}"
-          python -c "import os; aid=os.environ.get('DMM_AFFILIATE_ID',''); print('設定あり' if aid else '未設定')"
-          
-      - name: 依存ライブラリをインストール
+
+      - name: 依存パッケージをインストール
         run: pip install requests
-        
+
       - name: X投稿文を生成
         env:
           DMM_API_ID:       ${{ secrets.DMM_API_ID }}
           DMM_AFFILIATE_ID: ${{ secrets.DMM_AFFILIATE_ID }}
-          DMM_FLOOR:  ${{ github.event.inputs.dmm_floor  || 'videoa' }}
-          DMM_SORT:   ${{ github.event.inputs.dmm_sort   || '-date' }}
-          POST_ALL:   ${{ github.event.inputs.post_all   || 'false' }}
-          POST_INDEX: ${{ github.event.inputs.post_index || '0' }}
+          # workflow_dispatch で入力された値を使用。
+          # スケジュール実行時は inputs が空なので || '1' でデフォルト値を補完。
+          POST_START_INDEX: ${{ github.event.inputs.post_start_index || '1' }}
+          DMM_FLOOR:        ${{ github.event.inputs.dmm_floor || 'videoa' }}
+          DMM_SORT:         ${{ github.event.inputs.dmm_sort || '-date' }}
         run: python dmm_x_post_generator.py
 
-      - name: 📄 生成した投稿文をアーティファクトとして保存
+      - name: 生成ファイルをアーティファクトとしてアップロード
         uses: actions/upload-artifact@v4
         with:
-          name: x-posts-${{ github.run_number }}
+          name: dmm_x_posts_${{ github.run_number }}
           path: dmm_x_posts_*.txt
-          retention-days: 7
+          retention-days: 7   # 7日間保存
