@@ -4,10 +4,10 @@ on:
   workflow_dispatch:
     inputs:
       post_start_index:
-        description: '取得開始番号（1始まり）例: 1→1〜20件目, 21→21〜40件目'
-        required: true
-        default: '1'
-        type: number
+        description: '取得開始番号（空欄でランダム自動設定）例: 1→1〜20件目, 21→21〜40件目'
+        required: false
+        default: ''
+        type: string
       dmm_sort_mode:
         description: 'ソートモード'
         required: false
@@ -41,6 +41,8 @@ jobs:
     steps:
       - name: リポジトリをチェックアウト
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Python セットアップ
         uses: actions/setup-python@v5
@@ -50,19 +52,41 @@ jobs:
       - name: 依存パッケージをインストール
         run: pip install requests
 
+      # 取得開始番号が空欄またはスケジュール実行時はランダム値を自動設定（1〜480の範囲）
+      - name: 取得開始番号を決定
+        id: set_start_index
+        run: |
+          INPUT="${{ github.event.inputs.post_start_index }}"
+          if [ -z "$INPUT" ]; then
+            RAND=$(python3 -c "import random; print(random.randint(1, 480))")
+            echo "start_index=$RAND" >> $GITHUB_OUTPUT
+            echo "🎲 ランダム取得開始番号: $RAND"
+          else
+            echo "start_index=$INPUT" >> $GITHUB_OUTPUT
+            echo "📌 指定取得開始番号: $INPUT"
+          fi
+
       - name: X投稿文を生成
         env:
           DMM_API_ID:       ${{ secrets.DMM_API_ID }}
           DMM_AFFILIATE_ID: ${{ secrets.DMM_AFFILIATE_ID }}
-          POST_START_INDEX: ${{ github.event.inputs.post_start_index || '1' }}
-          # both=新着20件+人気20件、スケジュール実行時もbothをデフォルトに
+          POST_START_INDEX: ${{ steps.set_start_index.outputs.start_index }}
           DMM_SORT_MODE:    ${{ github.event.inputs.dmm_sort_mode || 'both' }}
           DMM_FLOOR:        ${{ github.event.inputs.dmm_floor || 'videoa' }}
+          # TXTをリポジトリに保存するためのフラグ
+          SAVE_TO_REPO:     'true'
         run: python dmm_x_post_generator.py
 
-      - name: 生成ファイルをアーティファクトとしてアップロード
-        uses: actions/upload-artifact@v4
-        with:
-          name: dmm_x_posts_${{ github.run_number }}
-          path: dmm_x_posts_*.txt
-          retention-days: 7
+      # ── TXTファイルをリポジトリにコミット（ZIPなしで直接ダウンロード可能に） ──
+      - name: 生成したTXTをリポジトリにコミット
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # outputsフォルダに移動して保存
+          mkdir -p outputs
+          mv dmm_x_posts_*.txt outputs/ 2>/dev/null || true
+
+          git add outputs/
+          git commit -m "🤖 自動生成: $(date +'%Y-%m-%d %H:%M') JST [開始番号: ${{ steps.set_start_index.outputs.start_index }}]" || echo "変更なし"
+          git push
