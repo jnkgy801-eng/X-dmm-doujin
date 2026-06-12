@@ -64,7 +64,8 @@ def get_floor_params(floor_name):
     elif floor_name == 'anime':
         params.update({'service': 'digital', 'floor': 'anime', 'site': 'FANZA'})
     elif floor_name == 'doujin':
-        params.update({'service': 'digital', 'floor': 'doujin', 'site': 'FANZA'}) # FANZA同人
+        # FANZA同人の正しいサービス名は 'digital_doujin' です
+        params.update({'service': 'digital_doujin', 'floor': 'doujin', 'site': 'FANZA'})
     elif floor_name == 'comic':
         params.update({'service': 'digital', 'floor': 'comic', 'site': 'FANZA'})
     elif floor_name == 'goods':
