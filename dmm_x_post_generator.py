@@ -132,6 +132,21 @@ COPY_TEMPLATES = [
     "このクオリティでこの価格はお得すぎる…💸",
     "レビュー高評価続出！納得のクオリティをぜひ体験して✨",
     "見逃す前にダウンロード！ストリーミングにも対応🎬",
+    "今日のおすすめはこれ！絶対に後悔しない一本📌",
+    "ランキング上位の人気作！話題になる前にチェック🏆",
+    "新作キター！気になってた人はこのタイミングで👏",
+    "じっくり堪能できるハイクオリティ作品です🎨",
+    "気になるあの設定…ぜひ本編で確認してみて👀",
+    "深夜のお供にぴったりな一本、見つけました🌙",
+    "ファン必見！じっくり集中して楽しみたい作品です🔥",
+    "細部までこだわり抜いたクオリティに注目です✨",
+    "今だけのお得な価格、チェックは早めがおすすめ⏰",
+    "繰り返し見たくなる魅力たっぷりの一本です💕",
+    "話題のジャンルが気になる方はこちらをチェック🔍",
+    "ハマる人が続出中…まずは詳細を見てみて😳",
+    "コレクションに加えたい一本、見つけた方はラッキー🎁",
+    "じわじわ人気が広がっている注目作はこちら📈",
+    "ここでしか見られない展開、要チェックです👇",
 ]
 
 def get_copy():
@@ -221,6 +236,11 @@ def actor_tags(actors):
     return '　'.join('#' + a.replace(' ', '').replace('　', '') for a in actors if a)
 
 
+def genre_tags(genres):
+    """ジャンル名（人妻・主婦、巨乳など）をハッシュタグ形式に変換する。"""
+    return '　'.join('#' + g.replace(' ', '').replace('　', '') for g in genres if g)
+
+
 def price_in_range(product):
     """価格フィルターが設定されている場合、商品の価格が範囲内かどうかを判定する。"""
     if not PRICE_RANGE_BOUNDS:
@@ -257,7 +277,7 @@ def build_x_post(product):
     if act_tags:
         lines.append(f"👤 {act_tags}")
     if product['genres']:
-        lines.append(f"🎞 {'　'.join(product['genres'][:2])}")
+        lines.append(f"🎞 {genre_tags(product['genres'])}")
     lines.append('')
     lines.append(url)
     if sample:
@@ -276,6 +296,8 @@ def build_x_post(product):
             lines2.append(f"💰 {product['price']}")
         if act_tags:
             lines2.append(f"👤 {act_tags}")
+        if product['genres']:
+            lines2.append(f"🎞 {genre_tags(product['genres'][:2])}")
         lines2.append('')
         lines2.append(url)
         if sample:
