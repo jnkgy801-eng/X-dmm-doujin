@@ -99,21 +99,30 @@ def fetch_dmm_products(sort_key, sort_label):
         return []
 
 def parse_product(item):
-    # 価格取得
+# 価格取得
     price = "不明"
     if "prices" in item:
         price_val = item["prices"].get("price")
         if price_val is not None:
-            price = f"¥{int(price_val):,}"
+            # 数字以外（'~' や ',' など）を除去して数値化、末尾に '~' があれば復活させる
+            is_range = "~" in str(price_val)
+            clean_price = "".join(filter(str.isdigit, str(price_val)))
+            if clean_price:
+                price = f"¥{int(clean_price):,}" + ("~" if is_range else "")
         elif "deliveries" in item and "delivery" in item["deliveries"]:
             # 電子等の価格
             deliv = item["deliveries"]["delivery"]
+            price_val = None
             if isinstance(deliv, list) and len(deliv) > 0:
                 price_val = deliv[0].get("price")
             elif isinstance(deliv, dict):
                 price_val = deliv.get("price")
+            
             if price_val is not None:
-                price = f"¥{int(price_val):,}"
+                is_range = "~" in str(price_val)
+                clean_price = "".join(filter(str.isdigit, str(price_val)))
+                if clean_price:
+                    price = f"¥{int(clean_price):,}" + ("~" if is_range else "")
 
     # 作者・サークル・女優などのハッシュタグ用
     tags = []
@@ -148,7 +157,9 @@ def price_in_range(p):
     if not PRICE_RANGE_BOUNDS:
         return True
     try:
-        val = int(p["price_raw"])
+        # 数字部分だけを抽出して判定する
+        clean_price = "".join(filter(str.isdigit, str(p["price_raw"])))
+        val = int(clean_price)
         return PRICE_RANGE_BOUNDS[0] <= val <= PRICE_RANGE_BOUNDS[1]
     except:
         return True
