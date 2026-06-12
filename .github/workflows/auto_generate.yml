@@ -29,6 +29,18 @@ on:
           - doujin
           - comic
           - goods
+      dmm_price_range:
+        description: '価格フィルター（商品の値段で絞り込み）'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all          # すべての価格
+          - 0-999        # 999円以下
+          - 1000-1999    # 1000〜1999円
+          - 2000-2999    # 2000〜2999円
+          - 3000-4999    # 3000〜4999円
+          - 5000-        # 5000円以上
 
   # スケジュール実行：毎日 JST 9:00 に新着＋人気の両方を自動生成
   schedule:
@@ -73,6 +85,7 @@ jobs:
           POST_START_INDEX: ${{ steps.set_start_index.outputs.start_index }}
           DMM_SORT_MODE:    ${{ github.event.inputs.dmm_sort_mode || 'both' }}
           DMM_FLOOR:        ${{ github.event.inputs.dmm_floor || 'videoa' }}
+          DMM_PRICE_RANGE:  ${{ github.event.inputs.dmm_price_range || 'all' }}
           # TXTをリポジトリに保存するためのフラグ
           SAVE_TO_REPO:     'true'
         run: python dmm_x_post_generator.py
