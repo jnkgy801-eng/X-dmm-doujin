@@ -1,7 +1,7 @@
 """
 💰🐦 DMMアフィリエイト → X（Twitter）投稿文ジェネレーター
-DMMから商品情報を取得し、X投稿用テキストをデスクトップまたは指定フォルダに保存します。
-（X APIは使わないので完全無料で動作します）
+DMM/FANZAから商品情報を取得し、X投稿用テキストを保存します。
+FANZA同人(doujin)に完全対応しました。
 """
 
 import os
@@ -25,396 +25,240 @@ if not DMM_API_ID or not DMM_AFFILIATE_ID:
 print('✅ 認証情報を読み込みました。')
 
 DMM_FLOOR = os.environ.get('DMM_FLOOR', 'videoa')
-
-# ----------------------------------------------------------------
-# 📌 ソートモード設定
-#    DMM_SORT_MODE=both（デフォルト）→ 新着20件 ＋ 人気20件 = 計40件を1ファイルに保存
-#    DMM_SORT_MODE=date              → 新着順のみ20件
-#    DMM_SORT_MODE=rank              → 人気順のみ20件
-# ----------------------------------------------------------------
 DMM_SORT_MODE = os.environ.get('DMM_SORT_MODE', 'both').lower()
+POST_START_INDEX = int(os.environ.get('POST_START_INDEX', '1'))
+DMM_PRICE_RANGE = os.environ.get('DMM_PRICE_RANGE', 'all')
+SAVE_TO_REPO = os.environ.get('SAVE_TO_REPO', 'false').lower() == 'true'
 
 SORT_TARGETS = {
-    'both': [('-date', '新着順'), ('-rank', '人気順')],
-    'date': [('-date', '新着順')],
-    'rank': [('-rank', '人気順')],
+    'both': [('date', '新着順'), ('rank', '人気順')],
+    'date': [('date', '新着順')],
+    'rank': [('rank', '人気順')]
 }
+
 SORT_LIST = SORT_TARGETS.get(DMM_SORT_MODE, SORT_TARGETS['both'])
 
-# ----------------------------------------------------------------
-# 🎲 取得開始位置（環境変数未設定時はランダム: 1〜480）
-# ----------------------------------------------------------------
-_raw_start = os.environ.get('POST_START_INDEX', '')
-if _raw_start.strip().isdigit():
-    POST_START_INDEX = int(_raw_start.strip())
-    print(f'📌 指定された取得開始番号: {POST_START_INDEX}')
-else:
-    POST_START_INDEX = random.randint(1, 480)
-    print(f'🎲 ランダム取得開始番号: {POST_START_INDEX}')
-
-FETCH_COUNT = 20
-DMM_OFFSET  = POST_START_INDEX
-DMM_HITS    = FETCH_COUNT
-
-# ----------------------------------------------------------------
-# 💰 価格フィルター設定
-#    DMM_PRICE_RANGE=all（デフォルト）→ 価格による絞り込みなし
-#    その他の指定例:
-#      "0-999"    → 0円〜999円
-#      "1000-1999"→ 1000円〜1999円
-#      "2000-2999"→ 2000円〜2999円
-#      "3000-4999"→ 3000円〜4999円
-#      "5000-"    → 5000円以上
-# ----------------------------------------------------------------
-DMM_PRICE_RANGE = os.environ.get('DMM_PRICE_RANGE', 'all').strip().lower()
-
-def parse_price_range(range_str):
-    """価格範囲文字列を (min, max) のタプルに変換する。max=Noneは上限なし。"""
-    if not range_str or range_str == 'all':
-        return None
-    range_str = range_str.replace('円', '').replace(',', '').strip()
-    if '-' not in range_str:
-        return None
-    min_part, max_part = range_str.split('-', 1)
-    min_part = min_part.strip()
-    max_part = max_part.strip()
+# 価格レンジ解析
+PRICE_RANGE_BOUNDS = None
+if DMM_PRICE_RANGE != 'all' and '-' in DMM_PRICE_RANGE:
     try:
-        price_min = int(min_part) if min_part else 0
-    except ValueError:
-        price_min = 0
-    if max_part:
-        try:
-            price_max = int(max_part)
-        except ValueError:
-            price_max = None
-    else:
-        price_max = None
-    return (price_min, price_max)
-
-PRICE_RANGE_BOUNDS = parse_price_range(DMM_PRICE_RANGE)
-if PRICE_RANGE_BOUNDS:
-    _pmin, _pmax = PRICE_RANGE_BOUNDS
-    _pmax_label = f'{_pmax:,}円' if _pmax is not None else '上限なし'
-    print(f'💰 価格フィルター: {_pmin:,}円 〜 {_pmax_label}')
-else:
-    print('💰 価格フィルター: なし（すべての価格を対象）')
-
-DMM_API_BASE = 'https://api.dmm.com/affiliate/v3'
-
-FLOOR_SERVICE_MAP = {
-    'videoa':  ('digital', 'videoa'),
-    'videoc':  ('digital', 'videoc'),
-    'anime':   ('digital', 'anime'),
-    'doujin':  ('doujin',  'digital_doujin'),
-    'comic':   ('ebook',   'comic'),
-    'goods':   ('mono',    'goods'),
-    'digital': ('digital', 'videoa'),
-}
-
-HASHTAG_MAP = {
-    'videoa': '#FANZA #DMM #アダルト #PR #新着',
-    'videoc': '#FANZA #DMM #素人 #PR #新着',
-    'anime':  '#FANZA #DMM #アニメ #PR #新着',
-    'doujin': '#FANZA #DMM #同人 #PR #新着',
-    'comic':  '#DMM #電子書籍 #漫画 #PR #新着',
-    'goods':  '#DMM #グッズ #PR #新着',
-    'default': '#DMM #PR #新着',
-}
-
-COPY_TEMPLATES = [
-    "今すぐチェック！期間限定で見逃せない作品が登場🔥",
-    "ファン待望の最新作がついに配信スタート✨",
-    "クオリティに驚くはず…一度見たら止まらない😍",
-    "話題沸騰中🔥今だけポイントバックもあるかも！",
-    "これは保存確定の神作品👑早めにゲットしておこう！",
-    "高画質でいつでも・どこでも楽しめる📱💻",
-    "無料試し読み／体験あり！まずはチェックを👀",
-    "このクオリティでこの価格はお得すぎる…💸",
-    "レビュー高評価続出！納得のクオリティをぜひ体験して✨",
-    "見逃す前にダウンロード！ストリーミングにも対応🎬",
-]
-
-def get_copy():
-    return random.choice(COPY_TEMPLATES)
-
-# ================================================================
-# 🔧 DMM API 関数
-# ================================================================
-
-def fetch_dmm_products(sort_key, sort_label):
-    service, floor_name = FLOOR_SERVICE_MAP.get(DMM_FLOOR, ('digital', 'videoa'))
-    params = {
-        'api_id':       DMM_API_ID,
-        'affiliate_id': DMM_AFFILIATE_ID,
-        'site':         'FANZA',
-        'service':      service,
-        'floor':        floor_name,
-        'hits':         DMM_HITS,
-        'offset':       DMM_OFFSET,
-        'sort':         sort_key,
-        'output':       'json',
-    }
-    print(f'\n  [{sort_label}] 取得範囲: {DMM_OFFSET}件目〜{DMM_OFFSET + DMM_HITS - 1}件目')
-    try:
-        resp = requests.get(f'{DMM_API_BASE}/ItemList', params=params, timeout=15)
-        data = resp.json()
-        items = data.get('result', {}).get('items', [])
-        if isinstance(items, dict):
-            items = items.get('item', [])
-        if items:
-            url_str = items[0].get('affiliateURL', '')
-            print(f"  URLの総文字数: {len(url_str)} / 末尾10文字: {url_str[-10:]}")
-        print(f'  ✅ {len(items)} 件取得しました。')
-        return items
-    except Exception as e:
-        print(f'  ❌ DMM APIエラー: {e}')
-        return []
-
-
-def parse_product(item):
-    title         = item.get('title', '')
-    affiliate_url = item.get('affiliateURL', '') or item.get('URL', '')
-    prices        = item.get('prices', {})
-    price_str     = ''
-    price_num     = None
-    if prices:
-        price_val = prices.get('price') or prices.get('list_price') or ''
-        if price_val:
-            digits = ''.join(c for c in str(price_val) if c.isdigit())
-            if digits:
-                price_num = int(digits)
-                price_str = f'\u00a5{price_num:,}'
-    actors = [a.get('name', '') for a in (item.get('iteminfo', {}).get('actress') or [])][:3]
-    genres = [g.get('name', '') for g in (item.get('iteminfo', {}).get('genre') or [])][:3]
-    maker  = ((item.get('iteminfo', {}).get('maker') or [{}])[0]).get('name', '')
-
-    sample_movie_url = ''
-    smv = item.get('sampleMovieURL', {})
-    if smv:
-        for key in ['size_720_480', 'size_644_414', 'size_560_360', 'size_476_306']:
-            val = smv.get(key, '')
-            if val:
-                sample_movie_url = val.strip()
-                break
-
-    return {
-        'title':            title,
-        'affiliate_url':    affiliate_url,
-        'price':            price_str,
-        'price_num':        price_num,
-        'actors':           actors,
-        'genres':           genres,
-        'maker':            maker,
-        'sample_movie_url': sample_movie_url,
-    }
-
-def clean_url(url):
-    if not url:
-        return ''
-    url = url.strip().replace('\n', '').replace('\r', '').replace('　', '')
-    if not url.startswith('http'):
-        return ''
-    return url
-
-
-def actor_tags(actors):
-    return '　'.join('#' + a.replace(' ', '').replace('　', '') for a in actors if a)
-
-
-def price_in_range(product):
-    """価格フィルターが設定されている場合、商品の価格が範囲内かどうかを判定する。"""
-    if not PRICE_RANGE_BOUNDS:
-        return True
-    price_num = product.get('price_num')
-    if price_num is None:
-        return False
-    price_min, price_max = PRICE_RANGE_BOUNDS
-    if price_num < price_min:
-        return False
-    if price_max is not None and price_num > price_max:
-        return False
-    return True
-
-
-def build_x_post(product):
-    hashtags  = HASHTAG_MAP.get(DMM_FLOOR, HASHTAG_MAP['default'])
-    url       = clean_url(product['affiliate_url'])
-    sample    = clean_url(product.get('sample_movie_url', ''))
-    copy      = get_copy()
-    act_tags  = actor_tags(product['actors'])
-
-    title = product['title']
-    if len(title) > 35:
-        title = title[:35] + '…'
-
-    lines = []
-    lines.append(f"🎬 {title}")
-    lines.append('')
-    lines.append(copy)
-    lines.append('')
-    if product['price']:
-        lines.append(f"💰 価格: {product['price']}")
-    if act_tags:
-        lines.append(f"👤 {act_tags}")
-    if product['genres']:
-        lines.append(f"🎞 {'　'.join(product['genres'][:2])}")
-    lines.append('')
-    lines.append(url)
-    if sample:
-        lines.append(f"▶ サンプル動画: {sample}")
-    lines.append(hashtags)
-
-    text = '\n'.join(lines)
-
-    if len(text) > 280:
-        lines2 = []
-        lines2.append(f"🎬 {title}")
-        lines2.append('')
-        lines2.append(copy)
-        lines2.append('')
-        if product['price']:
-            lines2.append(f"💰 {product['price']}")
-        if act_tags:
-            lines2.append(f"👤 {act_tags}")
-        lines2.append('')
-        lines2.append(url)
-        if sample:
-            lines2.append(f"▶ サンプル: {sample}")
-        lines2.append(hashtags)
-        text = '\n'.join(lines2)
-
-    return text
-
-# ================================================================
-# 💾 保存先を決定
-# ================================================================
-
-def get_save_dir():
-    """
-    保存先の優先順位:
-    1. 環境変数 SAVE_DIR で明示指定されたパス
-    2. GitHub Actions 環境 (SAVE_TO_REPO=true) → カレントディレクトリ（後でoutputsへ移動）
-    3. デスクトップ（ローカル実行時）
-       - ~/Desktop
-       - ~/OneDrive/Desktop
-       - ~/OneDrive/デスクトップ
-       - ~/デスクトップ
-    4. カレントディレクトリ（フォールバック）
-    """
-    # 環境変数で明示指定
-    explicit = os.environ.get('SAVE_DIR', '').strip()
-    if explicit:
-        Path(explicit).mkdir(parents=True, exist_ok=True)
-        return explicit
-
-    # GitHub Actions上での実行（outputs/フォルダに保存）
-    if os.environ.get('SAVE_TO_REPO', '').lower() == 'true':
-        out = Path('outputs')
-        out.mkdir(exist_ok=True)
-        return str(out)
-
-    # ローカル実行時はデスクトップを探す
-    try:
-        home = Path.home()
-        for path in [
-            home / "Desktop",
-            home / "OneDrive" / "Desktop",
-            home / "OneDrive" / "デスクトップ",
-            home / "デスクトップ",
-        ]:
-            if path.exists():
-                return str(path)
-    except Exception:
+        low, high = map(int, DMM_PRICE_RANGE.split('-'))
+        PRICE_RANGE_BOUNDS = (low, high)
+    except:
         pass
 
-    return '.'
+# フロア設定マッピング
+# FANZA同人の場合は site='FANZA', service='digital', floor='doujin' となるように自動判定
+def get_floor_params(floor_name):
+    # デフォルトはvideoa(ビデオ)
+    params = {
+        'site': 'FANZA',
+        'service': 'digital',
+        'floor': 'videoa'
+    }
+    
+    if floor_name == 'videoa':
+        params.update({'service': 'digital', 'floor': 'videoa', 'site': 'FANZA'})
+    elif floor_name == 'videoc':
+        params.update({'service': 'digital', 'floor': 'videoc', 'site': 'FANZA'})
+    elif floor_name == 'anime':
+        params.update({'service': 'digital', 'floor': 'anime', 'site': 'FANZA'})
+    elif floor_name == 'doujin':
+        params.update({'service': 'digital', 'floor': 'doujin', 'site': 'FANZA'}) # FANZA同人
+    elif floor_name == 'comic':
+        params.update({'service': 'digital', 'floor': 'comic', 'site': 'FANZA'})
+    elif floor_name == 'goods':
+        params.update({'service': 'mono', 'floor': 'goods', 'site': 'DMM'})
+    else:
+        params.update({'service': 'digital', 'floor': floor_name})
+    return params
 
+def fetch_dmm_products(sort_key, sort_label):
+    url = "https://api.dmm.com/affiliate/v3/ItemList"
+    floor_p = get_floor_params(DMM_FLOOR)
+    
+    params = {
+        "api_id": DMM_API_ID,
+        "affiliate_id": DMM_AFFILIATE_ID,
+        "site": floor_p['site'],
+        "service": floor_p['service'],
+        "floor": floor_p['floor'],
+        "hits": 20,
+        "offset": POST_START_INDEX,
+        "sort": sort_key,
+        "output": "json"
+    }
+    
+    try:
+        res = requests.get(url, params=params, timeout=15)
+        res.raise_for_status()
+        data = res.json()
+        return data.get("result", {}).get("items", [])
+    except Exception as e:
+        print(f"  ⚠️ APIエラー [{sort_label}]: {e}")
+        return []
 
-def save_posts(all_sections):
-    save_dir  = get_save_dir()
-    timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-    filename  = f'dmm_x_posts_{timestamp}.txt'
-    filepath  = os.path.join(save_dir, filename)
+def parse_product(item):
+    # 価格取得
+    price = "不明"
+    if "prices" in item:
+        price_val = item["prices"].get("price")
+        if price_val is not None:
+            price = f"¥{int(price_val):,}"
+        elif "deliveries" in item and "delivery" in item["deliveries"]:
+            # 電子等の価格
+            deliv = item["deliveries"]["delivery"]
+            if isinstance(deliv, list) and len(deliv) > 0:
+                price_val = deliv[0].get("price")
+            elif isinstance(deliv, dict):
+                price_val = deliv.get("price")
+            if price_val is not None:
+                price = f"¥{int(price_val):,}"
 
-    total = sum(len(posts) for _, posts in all_sections)
+    # 作者・サークル・女優などのハッシュタグ用
+    tags = []
+    if "iteminfo" in item:
+        info = item["iteminfo"]
+        # 同人サークル
+        if "maker" in info:
+            tags.extend([m.get("name") for m in info["maker"] if m.get("name")])
+        # 女優(ビデオ)
+        elif "actress" in info:
+            tags.extend([a.get("name") for a in info["actress"] if a.get("name")])
+        # 作者(コミックなど)
+        elif "author" in info:
+            tags.extend([a.get("name") for a in info["author"] if a.get("name")])
 
-    with open(filepath, 'w', encoding='utf-8') as f:
-        f.write(f"# DMMアフィリエイト X投稿文\n")
+    # サンプル動画・プレビューURL
+    sample_url = ""
+    if "sampleMovieURL" in item:
+        sample_url = item["sampleMovieURL"].get("size_720_480") or item["sampleMovieURL"].get("size_476_306") or ""
+
+    return {
+        "title": item.get("title", "無題の商品"),
+        "url": item.get("affiliateURL", item.get("url", "")),
+        "price": price,
+        "price_raw": item.get("prices", {}).get("price") or 0,
+        "tags": list(set(tags))[:3], # 最大3つ
+        "sample_url": sample_url,
+        "cid": item.get("content_id", "")
+    }
+
+def price_in_range(p):
+    if not PRICE_RANGE_BOUNDS:
+        return True
+    try:
+        val = int(p["price_raw"])
+        return PRICE_RANGE_BOUNDS[0] <= val <= PRICE_RANGE_BOUNDS[1]
+    except:
+        return True
+
+def build_x_post(p):
+    # X（Twitter）用の投稿文を作成
+    title = p["title"]
+    if len(title) > 50:
+        title = title[:47] + "..."
+
+    # 同人フロアに合わせた絵文字や文言の調整
+    icon = "🎨" if DMM_FLOOR == "doujin" else "🎬"
+    floor_tag = "#FANZA同人 #同人誌" if DMM_FLOOR == "doujin" else "#FANZA #録画"
+    if DMM_FLOOR == "comic":
+        icon = "📖"
+        floor_tag = "#FANZAコミック"
+
+    tag_str = " ".join([f"#{t.replace(' ', '').replace('　', '')}" for t in p["tags"]])
+    
+    text = f"{icon} {title}
+
+"
+    text += f"注目作品を今すぐチェック！✨
+
+"
+    text += f"💰 価格: {p['price']}
+"
+    if tag_str:
+        text += f"👤 {tag_str}
+"
+    text += f"
+{p['url']}
+"
+    
+    if p['sample_url']:
+        text += f"▶ サンプル動画あり
+"
+        
+    text += f"{floor_tag} #PR"
+    return text
+
+def save_output(all_sections):
+    now = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"dmm_x_posts_{now}.txt"
+    
+    out_dir = Path("outputs")
+    out_dir.mkdir(exist_ok=True)
+    filepath = out_dir / filename
+    
+    total_posts = sum(len(posts) for _, posts in all_sections)
+    
+    with open(filepath, "w", encoding="utf-8") as f:
+        f.write(f"# DMM/FANZAアフィリエイト X投稿文\n")
         f.write(f"# 生成日時: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
         f.write(f"# フロア: {DMM_FLOOR} / モード: {DMM_SORT_MODE}\n")
         f.write(f"# 価格フィルター: {DMM_PRICE_RANGE}\n")
-        f.write(f"# 取得開始: {DMM_OFFSET}件目 / 各ソート{FETCH_COUNT}件\n")
-        f.write(f"# 総投稿数: {total}件\n")
-        f.write("=" * 60 + "\n\n")
-
-        for sort_label, posts in all_sections:
-            f.write(f"{'=' * 60}\n")
-            f.write(f"【{sort_label}】{len(posts)}件\n")
-            f.write(f"{'=' * 60}\n\n")
-
-            for i, (product, text) in enumerate(posts, 1):
-                f.write(f"--- {sort_label} {i}/{len(posts)} ---\n")
-                f.write(f"商品名: {product['title']}\n")
+        f.write(f"# 取得開始インデックス: {POST_START_INDEX}\n")
+        f.write(f"# 総投稿数: {total_posts}件\n")
+        f.write(f"============================================================\n\n")
+        
+        for label, posts in all_sections:
+            f.write(f"============================================================\n")
+            f.write(f"【{label}】{len(posts)}件\n")
+            f.write(f"============================================================\n\n")
+            
+            for i, (p, text) in enumerate(posts, 1):
+                f.write(f"--- {label} {i}/{len(posts)} ---\n")
+                f.write(f"商品名: {p['title']}\n")
                 f.write(f"文字数: {len(text)}文字\n")
-                f.write(f"URL確認: {product['affiliate_url']}\n")
-                if product.get('sample_movie_url'):
-                    f.write(f"サンプル動画: {product['sample_movie_url']}\n")
-                f.write("-" * 40 + "\n")
-                f.write(text)
-                f.write("\n\n")
-
+                f.write(f"URL: {p['url']}\n")
+                if p['sample_url']:
+                    f.write(f"サンプル: {p['sample_url']}\n")
+                f.write(f"----------------------------------------\n")
+                f.write(f"{text}\n\n")
+                
     print(f'\n💾 保存完了！')
     print(f'📄 ファイル: {filepath}')
     return filepath
 
-# ================================================================
-# 🚀 メイン実行
-# ================================================================
+if __name__ == "__main__":
+    print(f'🛍️  DMM/FANZAから商品情報を取得中（フロア: {DMM_FLOOR} / モード: {DMM_SORT_MODE}）...')
+    all_sections = []
 
-print(f'🛍️  DMMから商品情報を取得中（フロア: {DMM_FLOOR} / モード: {DMM_SORT_MODE}）...')
+    for sort_key, sort_label in SORT_LIST:
+        raw_items = fetch_dmm_products(sort_key, sort_label)
+        if not raw_items:
+            print(f'  ⚠️  [{sort_label}] 商品が取得できませんでした。スキップします。')
+            continue
 
-all_sections = []
+        products = [parse_product(item) for item in raw_items]
 
-for sort_key, sort_label in SORT_LIST:
-    raw_items = fetch_dmm_products(sort_key, sort_label)
-    if not raw_items:
-        print(f'  ⚠️  [{sort_label}] 商品が取得できませんでした。スキップします。')
-        continue
+        if PRICE_RANGE_BOUNDS:
+            before_count = len(products)
+            products = [p for p in products if price_in_range(p)]
+            print(f'  💰 価格フィルター適用: {before_count}件 → {len(products)}件')
 
-    products = [parse_product(item) for item in raw_items]
+        if not products:
+            print(f'  ⚠️  [{sort_label}] 価格条件に合う商品がありませんでした。スキップします。')
+            continue
 
-    if PRICE_RANGE_BOUNDS:
-        before_count = len(products)
-        products = [p for p in products if price_in_range(p)]
-        print(f'  💰 価格フィルター適用: {before_count}件 → {len(products)}件')
+        print(f'  📝 [{sort_label}] 投稿文を生成中...')
+        posts = []
+        for p in products:
+            text = build_x_post(p)
+            posts.append((p, text))
+            print(f"    ✅ [{len(text)}文字] {p['title'][:30]}...")
 
-    if not products:
-        print(f'  ⚠️  [{sort_label}] 価格条件に合う商品がありませんでした。スキップします。')
-        continue
+        all_sections.append((sort_label, posts))
 
-    print(f'  📝 [{sort_label}] 投稿文を生成中...')
-
-    posts = []
-    for p in products:
-        text = build_x_post(p)
-        posts.append((p, text))
-        print(f"    ✅ [{len(text)}文字] {p['title'][:30]}...")
-
-    all_sections.append((sort_label, posts))
-
-if not all_sections:
-    print('❌ 商品が1件も取得できませんでした。')
-    sys.exit(1)
-
-first_label, first_posts = all_sections[0]
-print('\n' + '=' * 60)
-print(f'📋 投稿文プレビュー（{first_label} 1件目）')
-print('=' * 60)
-print(first_posts[0][1])
-print('=' * 60)
-
-save_posts(all_sections)
-
-total = sum(len(p) for _, p in all_sections)
-print(f'\n✅ 完了！合計 {total} 件の投稿文を保存しました。')
-print('テキストファイルを開いてXに手動投稿してください。')
+    if all_sections:
+        save_output(all_sections)
+    else:
+        print("❌ 投稿文を生成できる商品がありませんでした。")
