@@ -56,6 +56,49 @@ FETCH_COUNT = 20
 DMM_OFFSET  = POST_START_INDEX
 DMM_HITS    = FETCH_COUNT
 
+# ----------------------------------------------------------------
+# 💰 価格フィルター設定
+#    DMM_PRICE_RANGE=all（デフォルト）→ 価格による絞り込みなし
+#    その他の指定例:
+#      "0-999"    → 0円〜999円
+#      "1000-1999"→ 1000円〜1999円
+#      "2000-2999"→ 2000円〜2999円
+#      "3000-4999"→ 3000円〜4999円
+#      "5000-"    → 5000円以上
+# ----------------------------------------------------------------
+DMM_PRICE_RANGE = os.environ.get('DMM_PRICE_RANGE', 'all').strip().lower()
+
+def parse_price_range(range_str):
+    """価格範囲文字列を (min, max) のタプルに変換する。max=Noneは上限なし。"""
+    if not range_str or range_str == 'all':
+        return None
+    range_str = range_str.replace('円', '').replace(',', '').strip()
+    if '-' not in range_str:
+        return None
+    min_part, max_part = range_str.split('-', 1)
+    min_part = min_part.strip()
+    max_part = max_part.strip()
+    try:
+        price_min = int(min_part) if min_part else 0
+    except ValueError:
+        price_min = 0
+    if max_part:
+        try:
+            price_max = int(max_part)
+        except ValueError:
+            price_max = None
+    else:
+        price_max = None
+    return (price_min, price_max)
+
+PRICE_RANGE_BOUNDS = parse_price_range(DMM_PRICE_RANGE)
+if PRICE_RANGE_BOUNDS:
+    _pmin, _pmax = PRICE_RANGE_BOUNDS
+    _pmax_label = f'{_pmax:,}円' if _pmax is not None else '上限なし'
+    print(f'💰 価格フィルター: {_pmin:,}円 〜 {_pmax_label}')
+else:
+    print('💰 価格フィルター: なし（すべての価格を対象）')
+
 DMM_API_BASE = 'https://api.dmm.com/affiliate/v3'
 
 FLOOR_SERVICE_MAP = {
@@ -133,11 +176,14 @@ def parse_product(item):
     affiliate_url = item.get('affiliateURL', '') or item.get('URL', '')
     prices        = item.get('prices', {})
     price_str     = ''
+    price_num     = None
     if prices:
         price_val = prices.get('price') or prices.get('list_price') or ''
         if price_val:
-            price_num = ''.join(c for c in str(price_val) if c.isdigit())
-            price_str = f'\u00a5{int(price_num):,}' if price_num else ''
+            digits = ''.join(c for c in str(price_val) if c.isdigit())
+            if digits:
+                price_num = int(digits)
+                price_str = f'\u00a5{price_num:,}'
     actors = [a.get('name', '') for a in (item.get('iteminfo', {}).get('actress') or [])][:3]
     genres = [g.get('name', '') for g in (item.get('iteminfo', {}).get('genre') or [])][:3]
     maker  = ((item.get('iteminfo', {}).get('maker') or [{}])[0]).get('name', '')
@@ -155,6 +201,7 @@ def parse_product(item):
         'title':            title,
         'affiliate_url':    affiliate_url,
         'price':            price_str,
+        'price_num':        price_num,
         'actors':           actors,
         'genres':           genres,
         'maker':            maker,
@@ -172,6 +219,21 @@ def clean_url(url):
 
 def actor_tags(actors):
     return '　'.join('#' + a.replace(' ', '').replace('　', '') for a in actors if a)
+
+
+def price_in_range(product):
+    """価格フィルターが設定されている場合、商品の価格が範囲内かどうかを判定する。"""
+    if not PRICE_RANGE_BOUNDS:
+        return True
+    price_num = product.get('price_num')
+    if price_num is None:
+        return False
+    price_min, price_max = PRICE_RANGE_BOUNDS
+    if price_num < price_min:
+        return False
+    if price_max is not None and price_num > price_max:
+        return False
+    return True
 
 
 def build_x_post(product):
@@ -280,6 +342,7 @@ def save_posts(all_sections):
         f.write(f"# DMMアフィリエイト X投稿文\n")
         f.write(f"# 生成日時: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
         f.write(f"# フロア: {DMM_FLOOR} / モード: {DMM_SORT_MODE}\n")
+        f.write(f"# 価格フィルター: {DMM_PRICE_RANGE}\n")
         f.write(f"# 取得開始: {DMM_OFFSET}件目 / 各ソート{FETCH_COUNT}件\n")
         f.write(f"# 総投稿数: {total}件\n")
         f.write("=" * 60 + "\n\n")
@@ -319,6 +382,16 @@ for sort_key, sort_label in SORT_LIST:
         continue
 
     products = [parse_product(item) for item in raw_items]
+
+    if PRICE_RANGE_BOUNDS:
+        before_count = len(products)
+        products = [p for p in products if price_in_range(p)]
+        print(f'  💰 価格フィルター適用: {before_count}件 → {len(products)}件')
+
+    if not products:
+        print(f'  ⚠️  [{sort_label}] 価格条件に合う商品がありませんでした。スキップします。')
+        continue
+
     print(f'  📝 [{sort_label}] 投稿文を生成中...')
 
     posts = []
