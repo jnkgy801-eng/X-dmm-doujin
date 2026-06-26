@@ -78,6 +78,7 @@ jobs:
         env:
           DMM_API_ID:       ${{ secrets.DMM_API_ID }}
           DMM_AFFILIATE_ID: ${{ secrets.DMM_AFFILIATE_ID }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           POST_START_INDEX: ${{ steps.set_start_index.outputs.start_index }}
           DMM_SORT_MODE:    ${{ github.event.inputs.dmm_sort_mode || 'both' }}
           DMM_FLOOR:        ${{ github.event.inputs.dmm_floor || 'videoa' }}
