@@ -112,13 +112,13 @@ FLOOR_SERVICE_MAP = {
 }
 
 HASHTAG_MAP = {
-    'videoa': '#FANZA #DMM #アダルト #PR #新着',
-    'videoc': '#FANZA #DMM #素人 #PR #新着',
-    'anime':  '#FANZA #DMM #アニメ #PR #新着',
-    'doujin': '#FANZA #DMM #同人 #PR #新着',
-    'comic':  '#DMM #電子書籍 #漫画 #PR #新着',
-    'goods':  '#DMM #グッズ #PR #新着',
-    'default': '#DMM #PR #新着',
+    'videoa': '#FANZA #DMM #アダルト #PR',
+    'videoc': '#FANZA #DMM #素人 #PR',
+    'anime':  '#FANZA #DMM #アニメ #PR',
+    'doujin': '#FANZA #DMM #同人 #PR',
+    'comic':  '#DMM #電子書籍 #漫画 #PR',
+    'goods':  '#DMM #グッズ #PR',
+    'default': '#DMM #PR',
 }
 
 # ================================================================
@@ -187,25 +187,29 @@ COPY_TEMPLATES_FALLBACK = [
 ]
 
 
-def get_copy_ai(title: str, genres: list) -> str:
-    """Claude APIを使ってタイトル・ジャンルに合った自然な一言コメントを生成する。
+def get_copy_ai(title: str, genres: list, maker: str, price: str) -> str:
+    """Claude APIを使ってタイトル・ジャンルに合った自然な複数行コメントを生成する。
     API失敗時はフォールバックテンプレートを返す。"""
     if not ANTHROPIC_API_KEY:
         return _get_copy_fallback(genres)
 
     genre_str = '・'.join(genres) if genres else 'なし'
+    maker_str = maker if maker else '不明'
+    price_str = price if price else '不明'
     prompt = (
-        f"同人誌（エロ同人）のX(Twitter)アフィリエイト投稿文の「一言コメント」を1つだけ作ってください。\n\n"
+        f"同人誌（エロ同人）のX(Twitter)アフィリエイト投稿の「紹介本文」を作ってください。\n\n"
         f"作品タイトル：{title}\n"
-        f"ジャンル：{genre_str}\n\n"
+        f"ジャンル：{genre_str}\n"
+        f"サークル/メーカー：{maker_str}\n"
+        f"価格：{price_str}\n\n"
         f"【条件】\n"
-        f"- 20〜40文字以内\n"
-        f"- AIっぽい宣伝文句（「話題沸騰中」「クオリティに驚く」「ファン必見」等）は使わない\n"
-        f"- 本当に好きな人がつぶやくような、自然な感想・反応の言葉にする\n"
-        f"- 絵文字は1〜2個まで（なくてもOK）\n"
-        f"- タイトルやジャンルの内容にちゃんと言及するか、それを読んだ人の反応っぽくする\n"
-        f"- 「！」「✨」の多用NG。過度なテンションNG。\n"
-        f"- 出力は一言コメントのテキストのみ。前置きや説明は不要。"
+        f"- 全体で60〜90文字（改行込み）\n"
+        f"- 2〜3行構成。1行目は作品の雰囲気や設定への反応、2行目以降はジャンル的な見どころや刺さるポイント\n"
+        f"- AIっぽい宣伝文句（「話題沸騰中」「クオリティに驚く」「ファン必見」「期間限定」等）は絶対使わない\n"
+        f"- そのジャンルが好きな人が普通につぶやくような、自然な口語体\n"
+        f"- 絵文字は全体で2〜3個まで。「！」「✨」の多用NG\n"
+        f"- タイトルやジャンル・設定の内容に具体的に言及する\n"
+        f"- 出力は本文テキストのみ。前置きや説明・カギカッコは不要。"
     )
 
     try:
@@ -218,14 +222,14 @@ def get_copy_ai(title: str, genres: list) -> str:
             },
             json={
                 'model': 'claude-haiku-4-5-20251001',
-                'max_tokens': 100,
+                'max_tokens': 150,
                 'messages': [{'role': 'user', 'content': prompt}],
             },
             timeout=10,
         )
         data = resp.json()
         text = data.get('content', [{}])[0].get('text', '').strip()
-        if text and len(text) <= 60:
+        if text and len(text) <= 120:
             return text
     except Exception as e:
         print(f'    ⚠️  AI生成エラー（フォールバック使用）: {e}')
@@ -346,53 +350,62 @@ def price_in_range(product):
 
 
 def build_x_post(product):
-    hashtags  = HASHTAG_MAP.get(DMM_FLOOR, HASHTAG_MAP['default'])
-    url       = clean_url(product['affiliate_url'])
-    sample    = clean_url(product.get('sample_movie_url', ''))
-    copy      = get_copy_ai(product['title'], product['genres'])
-    act_tags  = actor_tags(product['actors'])
+    hashtags = HASHTAG_MAP.get(DMM_FLOOR, HASHTAG_MAP['default'])
+    url      = clean_url(product['affiliate_url'])
+    sample   = clean_url(product.get('sample_movie_url', ''))
+    act_tags = actor_tags(product['actors'])
+    copy     = get_copy_ai(product['title'], product['genres'], product.get('maker', ''), product['price'])
 
     title = product['title']
-    if len(title) > 35:
-        title = title[:35] + '…'
 
-    lines = []
-    lines.append(f"🎬 {title}")
-    lines.append('')
-    lines.append(copy)
-    lines.append('')
-    if product['price']:
-        lines.append(f"💰 価格: {product['price']}")
-    if act_tags:
-        lines.append(f"👤 {act_tags}")
-    if product['genres']:
-        lines.append(f"🎞 {genre_tags(product['genres'])}")
-    lines.append('')
-    lines.append(url)
-    if sample:
-        lines.append(f"▶ サンプル動画: {sample}")
-    lines.append(hashtags)
+    # ── ブロックを組み立て、280文字に収まるよう調整 ──────────────────
+    # 各要素の文字コストを計算しながら貪欲に詰める
 
-    text = '\n'.join(lines)
-
-    if len(text) > 280:
-        lines2 = []
-        lines2.append(f"🎬 {title}")
-        lines2.append('')
-        lines2.append(copy)
-        lines2.append('')
+    def assemble(full_title, genre_limit, include_sample):
+        lines = []
+        # タイトル行
+        lines.append(f"📖 {full_title}")
+        lines.append('')
+        # AI生成本文（複数行）
+        lines.append(copy)
+        lines.append('')
+        # 価格
         if product['price']:
-            lines2.append(f"💰 {product['price']}")
+            lines.append(f"💰 {product['price']}")
+        # メーカー/サークル
+        if product.get('maker'):
+            lines.append(f"🏷 {product['maker']}")
+        # 出演者
         if act_tags:
-            lines2.append(f"👤 {act_tags}")
+            lines.append(f"👤 {act_tags}")
+        # ジャンルタグ
         if product['genres']:
-            lines2.append(f"🎞 {genre_tags(product['genres'][:2])}")
-        lines2.append('')
-        lines2.append(url)
-        if sample:
-            lines2.append(f"▶ サンプル: {sample}")
-        lines2.append(hashtags)
-        text = '\n'.join(lines2)
+            lines.append(f"🎞 {genre_tags(product['genres'][:genre_limit])}")
+        lines.append('')
+        # URL
+        lines.append(url)
+        # サンプル動画
+        if include_sample and sample:
+            lines.append(f"▶ サンプル動画: {sample}")
+        # ハッシュタグ
+        lines.append(hashtags)
+        return '\n'.join(lines)
+
+    # まずフル構成（タイトル全表示・全ジャンル・サンプルあり）で試みる
+    text = assemble(title, genre_limit=5, include_sample=True)
+
+    # 280文字超えたらサンプルを外す
+    if len(text) > 280:
+        text = assemble(title, genre_limit=5, include_sample=False)
+
+    # まだ超えたらジャンルを2つに絞る
+    if len(text) > 280:
+        text = assemble(title, genre_limit=2, include_sample=False)
+
+    # それでも超えたらタイトルを40文字に切る
+    if len(text) > 280:
+        short_title = title[:40] + '…' if len(title) > 40 else title
+        text = assemble(short_title, genre_limit=2, include_sample=False)
 
     return text
 
