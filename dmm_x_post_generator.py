@@ -193,14 +193,14 @@ COPY_TEMPLATES_BY_GENRE = {
 }
 
 COPY_TEMPLATES_FALLBACK = [
-    "タイトルで気になった人は、とりあえずサンプルだけ見てみて",
+    "タイトルで気になった人は、とりあえず詳細だけ覗いてみて",
     "深夜にひっそり楽しむやつ、これです🌙",
     "このジャンル好きな人には刺さると思う",
     "こういうの待ってた人、いるんじゃないかな",
     "見てみたら予想より良かった系の作品",
     "タイトルの雰囲気通りの内容で、期待は裏切らない",
     "このジャンルが好きなら後悔しない内容だと思う",
-    "説明よりサンプル見た方が早い。気になるなら覗いてみて",
+    "説明より作品ページ見た方が早い。気になるなら覗いてみて",
     "深夜のお供にちょうどいい密度感です🌙",
     "興味あるなら損はしない一作だと思う",
 ]
@@ -215,8 +215,16 @@ def get_copy_ai(title: str, genres: list, maker: str, price: str) -> str:
     genre_str = '・'.join(genres) if genres else 'なし'
     maker_str = maker if maker else '不明'
     price_str = price if price else '不明'
+
+    if DMM_FLOOR == 'doujin':
+        floor_label = '同人誌・同人CG集'
+        no_sample_note = '- 「サンプルを見て」「試し読み」などサンプル動画・試読を促す表現は使わない（同人作品のため）\n'
+    else:
+        floor_label = 'AV・動画'
+        no_sample_note = ''
+
     prompt = (
-        f"同人誌（エロ同人）のX(Twitter)アフィリエイト投稿の「紹介本文」を作ってください。\n\n"
+        f"{floor_label}のX(Twitter)アフィリエイト投稿の「紹介本文」を作ってください。\n\n"
         f"作品タイトル：{title}\n"
         f"ジャンル：{genre_str}\n"
         f"サークル/メーカー：{maker_str}\n"
@@ -228,6 +236,7 @@ def get_copy_ai(title: str, genres: list, maker: str, price: str) -> str:
         f"- そのジャンルが好きな人が普通につぶやくような、自然な口語体\n"
         f"- 絵文字は全体で2〜3個まで。「！」「✨」の多用NG\n"
         f"- タイトルやジャンル・設定の内容に具体的に言及する\n"
+        f"{no_sample_note}"
         f"- 出力は本文テキストのみ。前置きや説明・カギカッコは不要。"
     )
 
@@ -425,7 +434,9 @@ def build_x_post(product):
                 reason_parts.append(review_str)
             if product.get('maker'):
                 reason_parts.append(f"{product['maker']}制作")
-            lines.append('、'.join(reason_parts) + 'の作品。気になるならサンプルだけでも見てみて')
+            # doujinはサンプル動画なし → 「作品ページを見てみて」に変える
+            cta = '作品ページを見てみて' if DMM_FLOOR == 'doujin' else 'サンプルだけでも見てみて'
+            lines.append('、'.join(reason_parts) + 'の作品。気になるなら' + cta)
         # 価格
         if product['price']:
             lines.append(f'💰 {product["price"]}')
