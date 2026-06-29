@@ -28,9 +28,6 @@ DMM_FLOOR = os.environ.get('DMM_FLOOR', 'videoa')
 
 # ----------------------------------------------------------------
 # 📌 ソートモード設定
-#    DMM_SORT_MODE=both（デフォルト）→ 新着20件 ＋ 人気20件 = 計40件を1ファイルに保存
-#    DMM_SORT_MODE=date              → 新着順のみ20件
-#    DMM_SORT_MODE=rank              → 人気順のみ20件
 # ----------------------------------------------------------------
 DMM_SORT_MODE = os.environ.get('DMM_SORT_MODE', 'both').lower()
 
@@ -58,33 +55,23 @@ DMM_HITS    = FETCH_COUNT
 
 # ----------------------------------------------------------------
 # 💰 価格フィルター設定
-#    DMM_PRICE_RANGE=all（デフォルト）→ 価格による絞り込みなし
-#    その他の指定例:
-#      "0-999"    → 0円〜999円
-#      "1000-1999"→ 1000円〜1999円
-#      "2000-2999"→ 2000円〜2999円
-#      "3000-4999"→ 3000円〜4999円
-#      "5000-"    → 5000円以上
 # ----------------------------------------------------------------
 DMM_PRICE_RANGE = os.environ.get('DMM_PRICE_RANGE', 'all').strip().lower()
 
 def parse_price_range(range_str):
-    """価格範囲文字列を (min, max) のタプルに変換する。max=Noneは上限なし。"""
     if not range_str or range_str == 'all':
         return None
     range_str = range_str.replace('円', '').replace(',', '').strip()
     if '-' not in range_str:
         return None
     min_part, max_part = range_str.split('-', 1)
-    min_part = min_part.strip()
-    max_part = max_part.strip()
     try:
-        price_min = int(min_part) if min_part else 0
+        price_min = int(min_part.strip()) if min_part.strip() else 0
     except ValueError:
         price_min = 0
-    if max_part:
+    if max_part.strip():
         try:
-            price_max = int(max_part)
+            price_max = int(max_part.strip())
         except ValueError:
             price_max = None
     else:
@@ -122,107 +109,210 @@ HASHTAG_MAP = {
 }
 
 # ================================================================
-# 🤖 AI動的コピー生成（購買意欲を高める2行構成）
+# 🤖 AI投稿文生成
+#
+# 【戦略】
+#   競合分析から判明した2つの重要な施策をコードに組み込む。
+#
+#   1. 「サービス新規紹介料」を狙う
+#      FANZAを初めて使う人が購入すると、通常報酬に加えて
+#      1,050〜5,240円の固定ボーナスが発生する。
+#      → 「FANZAを使ったことがない人」に響く文章を優先する。
+#
+#   2. 「伸ばす投稿（hook投稿）」と「売る投稿（cv投稿）」を分ける
+#      hook投稿: アフィリリンクなし。ギャップ・意外性で自然にバズらせ
+#               フォロワー獲得・インプレッションを稼ぐ。
+#      cv投稿:   アフィリリンクあり。hook投稿で温まったフォロワーに
+#               購買意欲の高いCTAで購入を促す。
+#      → 生成比率: hook 1本 + cv 1本 を1セットとして出力する。
 # ================================================================
 
 ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY', '')
 
-# AI生成が使えない場合のフォールバック用ジャンル別テンプレート
-# （1行目：共感・2行目：購買背中押し の2行構成）
-COPY_TEMPLATES_BY_GENRE = {
+# ----------------------------------------------------------------
+# フォールバックテンプレート（hook / cv 両用）
+# ----------------------------------------------------------------
+HOOK_TEMPLATES_BY_GENRE = {
     'ラブコメ': [
-        "この設定、好きな人には刺さりすぎる内容だった💕\nラブコメ好きなら後悔しない一作です",
-        "ニヤニヤが止まらない展開で深夜に読み始めたら止まれなかった\nレビューも高評価多数で安定感あり",
+        "FANZAって使ったことない人に聞きたいんだけど\nラブコメ系の電子書籍が普通に揃ってるの知ってる？\nアダルトのイメージ強いと思うけど普通に読める作品も多い",
+        "なんとなく敬遠してたFANZA、試しに使ってみたら\nラブコメ系でこのクオリティは予想外だった\nアカウント作るだけなら無料なのも地味に助かった",
     ],
     '巨乳': [
-        "ボリューム感とキャラの可愛さが両立してる、意外と少ないタイプ\nこのジャンル好きなら試す価値あり",
-        "絵柄がツボすぎた。これ系好きな人には素直におすすめしたい\n価格も手が出しやすい範囲",
+        "FANZAを使わない理由って何？\n・登録がめんどくさい\n・課金が不安\n・そもそも知らない\nどれかあてはまるなら損してるかも",
+        "FANZA歴3年の自分が一番後悔してること\nもっと早く使い始めればよかったってやつ\n最初のハードルが全然大したことなかった",
     ],
     '人妻・主婦': [
-        "こういう背徳感のある設定、なかなか抜け出せないんだよな😅\n人妻もので外れ引いたことほぼない、これも安定してた",
-        "禁断感の演出がうまくて読み終わった後に罪悪感ある系😇\nレビュー評価も高く、買って損はない",
+        "FANZAに登録するのって実は5分かからないの知ってる？\nクレカ不要で始められるし\n最初の壁が思ったよりずっと低かった",
+        "FANZA未経験の人に一番多い誤解\n「会員登録したら高額請求される」\nこれ完全にデマです。無料会員のまま使える機能も多い",
     ],
     '制服': [
-        "学園ものは設定の作り込みで全然変わるけど、これはちゃんとしてる\n制服好きにはそのまま刺さる構成です✏️",
-        "このジャンルの安定感ってあるよね。今回も期待を裏切らなかった\n迷ってるなら詳細ページで確認してみて",
+        "FANZAが初めての人に伝えたいこと\n無料で見られるサンプルがめちゃくちゃ充実してる\n本購入前に確認できるから失敗しない",
+        "意外と知られてないんだけどFANZAって\n登録→閲覧→購入がぜんぶスマホで完結する\nアプリもあるしUI思ったより全然いい",
     ],
     '熟女': [
-        "大人の色気って絵力が要るけど、これはそこをちゃんとクリアしてる\n熟女もので完成度高いのは貴重、おすすめです",
-        "このジャンル好きな人なら間違いなく刺さる作品です\n高評価レビューが多く、信頼できる一本",
-    ],
-    '近親相姦': [
-        "タブー設定が好きな人には刺さる構成。引きが強くて一気読みした\n後味がクセになる系、詳細で確認してみて",
-    ],
-    '寝取り・寝取られ・NTR': [
-        "NTR好きにはわかる、この「見てはいけないのに見てしまう」感覚\nNTR耐性ある人なら最後まで引き込まれると思う",
-    ],
-    '調教': [
-        "展開の流れが読んでてテンション上がる構成だった🔥\n進行の緩急がうまい。このジャンル好きなら損しない",
-    ],
-    '中出し': [
-        "内容の密度がしっかりある作品。薄いやつとは違う\nこのジャンルでこの完成度は当たりだと思う",
-    ],
-    '異種姦': [
-        "ファンタジー設定が好きな人は世界観から楽しめると思う🐉\n設定の独自性があって、これは好きな部類",
+        "FANZAって名前は聞いたことあるけど\n実際どんなサービスか知ってる人、意外と少ない\n使い方まとめてみたら想像より全然シンプルだった",
     ],
     'VR': [
-        "VR専用に作られてる感がちゃんとあって、臨場感が違う\n8K対応なら画質の差を体感できる。VR持ちには普通におすすめ",
+        "VRコンテンツに興味あるけど何から始めればいい？\nって聞かれることが増えてきたので\nFANZAのVRが一番選択肢が多い理由を説明する",
+        "VRのアダルトコンテンツって\nどこで配信されてるか知ってる？\n実はFANZAが圧倒的に品揃えがいい",
     ],
     '4時間以上作品': [
-        "ボリューム系が好きな人には満足度が高い一本だと思う\nコスパ重視で探してる人に刺さる作品",
+        "コスパで選ぶなら長尺作品が圧倒的にお得\nFANZAの4時間以上作品って\n1時間あたりの単価を計算するとかなり安い",
     ],
 }
 
-COPY_TEMPLATES_FALLBACK = [
-    "このジャンル好きな人には刺さると思う\n詳細ページで確認してから決めてみて",
-    "深夜のお供にちょうどいい密度感🌙\nレビュー評価も高く、選んで損はない",
-    "タイトルの雰囲気通りの内容で、期待は裏切らない\n気になるなら詳細だけでも覗いてみて",
-    "こういうの待ってた人、いるんじゃないかな\n価格と内容のバランスが良い作品です",
-    "説明より作品ページ見た方が早い\n興味あるなら損はしない一作だと思う",
+HOOK_TEMPLATES_FALLBACK = [
+    "FANZAを使ったことない人に聞きたいんだけど\n使わない理由ってなんですか？\nほとんどの不安って実は誤解から来てると思う",
+    "FANZA歴5年の自分が最初につまずいたこと\n実はそんな大したことじゃなかった\n登録から最初の購入まで正直15分かからなかった",
+    "FANZAって実際どんなサービス？\nって聞かれることが増えてきた\n一言で言うと動画も本もグッズも全部あるやつ",
+    "FANZA未経験の人が思ってる不安、3つ答えます\n①登録が大変そう → 5分以内\n②高そう → 100円からある\n③バレそう → 通帳には「DMM」とだけ表示",
+    "アダルトコンテンツって\nどこで買うのが一番安全か知ってる？\n大手サービスを使うべき理由がちゃんとある",
+]
+
+CV_TEMPLATES_BY_GENRE = {
+    'ラブコメ': [
+        "このジャンル好きな人には刺さる設定だった💕\nレビュー評価も高く、価格も手が出しやすい範囲",
+        "ラブコメ好きなら後悔しない一作\n初回購入なら新規報酬も出るので試してみて",
+    ],
+    '巨乳': [
+        "ボリューム感とキャラの可愛さが両立してる\nこのジャンル好きなら試す価値あり",
+        "絵柄がツボすぎた。これ系好きな人に素直におすすめ\nレビュー数も多くて安定してる",
+    ],
+    '人妻・主婦': [
+        "人妻もので外れ引いたことほぼない、これも安定してた\n禁断感の演出がうまい作品です",
+        "背徳感のある設定が好きな人には刺さる構成\nレビュー評価も高く選んで損はない",
+    ],
+    '制服': [
+        "学園ものは設定の作り込みで全然変わるけど\nこれはちゃんとしてる。制服好きには刺さる✏️",
+        "このジャンルの安定感ってあるよね\n今回も期待を裏切らなかった、詳細で確認してみて",
+    ],
+    '熟女': [
+        "大人の色気をちゃんと表現できてる作品\n熟女もので完成度高いのは貴重です",
+        "このジャンル好きなら間違いなく刺さる\n高評価レビューが多い信頼できる一本",
+    ],
+    '近親相姦': [
+        "タブー設定が好きな人には刺さる構成\n後味がクセになる系で詳細で確認してみて",
+    ],
+    '寝取り・寝取られ・NTR': [
+        "NTR好きにはわかるこの感覚\nNTR耐性ある人なら最後まで引き込まれると思う",
+    ],
+    '調教': [
+        "展開の流れが読んでてテンション上がる🔥\n進行の緩急がうまい。このジャンル好きなら損しない",
+    ],
+    '中出し': [
+        "内容の密度がしっかりある作品、薄いやつとは違う\nこのジャンルでこの完成度は当たりだと思う",
+    ],
+    '異種姦': [
+        "ファンタジー設定好きは世界観から楽しめると思う🐉\n設定の独自性があって飽きなかった",
+    ],
+    'VR': [
+        "VR専用に作られてる感がちゃんとあって臨場感が違う\n8K対応なら画質の差を体感できる",
+    ],
+    '4時間以上作品': [
+        "ボリューム系が好きな人には満足度が高い一本\nコスパ重視で探してる人に刺さる作品",
+    ],
+}
+
+CV_TEMPLATES_FALLBACK = [
+    "このジャンル好きな人には刺さると思う\nレビュー評価も高く選んで損はない",
+    "深夜のお供にちょうどいい密度感🌙\n価格と内容のバランスが良い作品です",
+    "タイトルの雰囲気通りの内容で期待は裏切らない\n気になるなら詳細だけでも覗いてみて",
+    "こういうの待ってた人いるんじゃないかな\n今すぐ詳細ページで確認してみて",
 ]
 
 
-def get_copy_ai(title: str, genres: list, maker: str, price: str, review_avg, review_count) -> str:
-    """Claude APIを使って購買意欲を高める2行コメントを生成する。
-    API失敗時はフォールバックテンプレートを返す。"""
+def get_hook_ai(title: str, genres: list, maker: str) -> str:
+    """【hook投稿用】FANZAを使ったことがない人の誤解を解き、
+    興味を持たせる自然な投稿文を生成する。リンクなし・売り込みなし。"""
     if not ANTHROPIC_API_KEY:
-        return _get_copy_fallback(genres)
+        return _get_hook_fallback(genres)
+
+    genre_str = '・'.join(genres) if genres else 'なし'
+
+    prompt = (
+        "FANZAアフィリエイトのX投稿で、リンクなし・売り込みなしの「フック投稿」を作ってください。\n\n"
+        "【目的】\n"
+        "FANZAをまだ使ったことがない人の誤解（登録が難しい・怪しい・高い等）を解いて、\n"
+        "「意外と使えそう」と思わせる自然なつぶやき。バズ・いいね・フォロワー獲得が目的。\n\n"
+        f"関連ジャンル：{genre_str}\n\n"
+        "【条件】\n"
+        "- 必ず3行構成、合計50〜90文字（改行込み）\n"
+        "- 1行目：FANZAに関する疑問・意外な事実・ギャップを提示。「え、そうなの？」と思わせる導入\n"
+        "- 2行目：その裏付けや具体的な理由（登録5分・クレカ不要・通帳にDMMとだけ表示など実際の情報を使う）\n"
+        "- 3行目：「使わないのはもったいない」と思わせる締め。疑問形や断言でもOK\n"
+        "- アフィリリンクや商品紹介は絶対に入れない（純粋な情報発信として自然に見せる）\n"
+        "- AIっぽい宣伝文句（「話題沸騰中」「ファン必見」等）は絶対使わない\n"
+        "- 絵文字は全体で0〜2個まで\n"
+        "- 出力は本文テキストのみ。前置きや説明は不要。"
+    )
+
+    try:
+        resp = requests.post(
+            'https://api.anthropic.com/v1/messages',
+            headers={
+                'x-api-key': ANTHROPIC_API_KEY,
+                'anthropic-version': '2023-06-01',
+                'content-type': 'application/json',
+            },
+            json={
+                'model': 'claude-haiku-4-5-20251001',
+                'max_tokens': 150,
+                'messages': [{'role': 'user', 'content': prompt}],
+            },
+            timeout=10,
+        )
+        data = resp.json()
+        text = data.get('content', [{}])[0].get('text', '').strip()
+        if text and len(text) <= 120:
+            return text
+    except Exception as e:
+        print(f'    ⚠️  AI hook生成エラー（フォールバック使用）: {e}')
+
+    return _get_hook_fallback(genres)
+
+
+def get_cv_ai(title: str, genres: list, maker: str, price: str, review_avg, review_count) -> str:
+    """【cv投稿用】商品を紹介し購買意欲を高める2行コメントを生成する。
+    特に「FANZAを初めて使う人」に刺さる文章を意識する（新規報酬狙い）。"""
+    if not ANTHROPIC_API_KEY:
+        return _get_cv_fallback(genres)
 
     genre_str = '・'.join(genres) if genres else 'なし'
     maker_str = maker if maker else '不明'
-    price_str = price if price else '不明'
 
-    # レビュー情報を文字列化
-    review_str = ''
+    review_info_str = ''
     if review_avg and review_count and review_count >= 5:
-        review_str = f'平均{review_avg}点（{review_count}件）'
+        review_info_str = f'平均{review_avg}点（{review_count}件）'
 
     if DMM_FLOOR == 'doujin':
         floor_label = '同人誌・同人CG集'
         no_sample_note = '- 「サンプルを見て」「試し読み」などサンプル動画・試読を促す表現は使わない（同人作品のため）\n'
-        cta_note = '- 2行目はジャンルが好きな人に「買う価値がある」と感じさせる理由を一言で\n'
     else:
         floor_label = 'AV・動画'
         no_sample_note = ''
-        cta_note = '- 2行目は「レビュー評価」「価格」「サンプルで確認を」のうち自然に使えるものを選んで購入の背中を押す\n'
 
     prompt = (
-        f"{floor_label}のX(Twitter)アフィリエイト投稿の「紹介本文」を作ってください。\n\n"
+        f"{floor_label}のX投稿で「売る投稿（CV投稿）」の紹介本文を作ってください。\n\n"
         f"作品タイトル：{title}\n"
         f"ジャンル：{genre_str}\n"
         f"サークル/メーカー：{maker_str}\n"
-        f"価格：{price_str}\n"
-        f"レビュー：{review_str if review_str else 'なし'}\n\n"
-        f"【条件】\n"
-        f"- 必ず2行構成、合計で50〜80文字（改行込み）\n"
-        f"- 1行目（25〜40文字）：ジャンルや設定への共感・反応。そのジャンルが好きな人が普通につぶやくような自然な口語体\n"
-        f"- 2行目（25〜40文字）：今すぐ見たい・買いたいと思わせる具体的な理由。レビュー件数や評価点があれば積極的に使う\n"
-        f"{cta_note}"
-        f"- AIっぽい宣伝文句（「話題沸騰中」「クオリティに驚く」「ファン必見」「期間限定」等）は絶対使わない\n"
-        f"- 絵文字は全体で0〜2個まで。「！」「✨」の多用NG\n"
-        f"- タイトルやジャンル・設定の内容に具体的に言及する\n"
+        f"価格：{price if price else '不明'}\n"
+        f"レビュー：{review_info_str if review_info_str else 'なし'}\n\n"
+        "【目的】\n"
+        "FANZAを初めて使う人も含め「この作品、今すぐ見たい/買いたい」と思わせる文章。\n"
+        "初回購入者はFANZAの新規報酬（1,050〜5,240円）の対象になるので、\n"
+        "FANZAを使ったことがない人の心理的ハードルも下げる表現を意識する。\n\n"
+        "【条件】\n"
+        "- 必ず2行構成、合計50〜80文字（改行込み）\n"
+        "- 1行目（25〜40文字）：ジャンルや設定への共感・反応。そのジャンルが好きな人の気持ちに刺さる言葉\n"
+        "- 2行目（25〜40文字）：今すぐ見たい/買いたいと思わせる具体的な理由。\n"
+        "  レビュー件数・評価点があれば積極的に使う。\n"
+        "  「FANZAが初めてでも登録5分でOK」「初回購入なら〜」等、初心者の背中を押す一言もあれば入れる。\n"
+        f"- AIっぽい宣伝文句（「話題沸騰中」「クオリティに驚く」「ファン必見」等）は絶対使わない\n"
+        "- そのジャンルが好きな人が普通につぶやくような自然な口語体\n"
+        "- 絵文字は全体で0〜2個まで\n"
         f"{no_sample_note}"
-        f"- 出力は本文テキストのみ。前置きや説明・カギカッコは不要。"
+        "- 出力は本文テキストのみ。前置きや説明は不要。"
     )
 
     try:
@@ -245,18 +335,26 @@ def get_copy_ai(title: str, genres: list, maker: str, price: str, review_avg, re
         if text and len(text) <= 100:
             return text
     except Exception as e:
-        print(f'    ⚠️  AI生成エラー（フォールバック使用）: {e}')
+        print(f'    ⚠️  AI cv生成エラー（フォールバック使用）: {e}')
 
-    return _get_copy_fallback(genres)
+    return _get_cv_fallback(genres)
 
 
-def _get_copy_fallback(genres: list) -> str:
-    """ジャンルに合ったフォールバックテンプレートを返す。"""
+def _get_hook_fallback(genres: list) -> str:
     for genre in genres:
-        for key, templates in COPY_TEMPLATES_BY_GENRE.items():
+        for key, templates in HOOK_TEMPLATES_BY_GENRE.items():
             if key in genre:
                 return random.choice(templates)
-    return random.choice(COPY_TEMPLATES_FALLBACK)
+    return random.choice(HOOK_TEMPLATES_FALLBACK)
+
+
+def _get_cv_fallback(genres: list) -> str:
+    for genre in genres:
+        for key, templates in CV_TEMPLATES_BY_GENRE.items():
+            if key in genre:
+                return random.choice(templates)
+    return random.choice(CV_TEMPLATES_FALLBACK)
+
 
 # ================================================================
 # 🔧 DMM API 関数
@@ -309,7 +407,6 @@ def parse_product(item):
     genres = [g.get('name', '') for g in (item.get('iteminfo', {}).get('genre') or [])][:3]
     maker  = ((item.get('iteminfo', {}).get('maker') or [{}])[0]).get('name', '')
 
-    # レビュー情報
     review_info = item.get('review', {}) or {}
     try:
         review_avg   = float(review_info.get('average', 0) or 0)
@@ -342,6 +439,7 @@ def parse_product(item):
         'review_count':     review_count,
     }
 
+
 def clean_url(url):
     if not url:
         return ''
@@ -352,7 +450,6 @@ def clean_url(url):
 
 
 def shorten_url(url):
-    """TinyURLでURLを短縮する。失敗時は元のURLをそのまま返す。"""
     if not url:
         return url
     try:
@@ -373,12 +470,10 @@ def actor_tags(actors):
 
 
 def genre_tags(genres):
-    """ジャンル名をハッシュタグ形式に変換する。"""
     return '　'.join('#' + g.replace(' ', '').replace('　', '') for g in genres if g)
 
 
 def price_in_range(product):
-    """価格フィルターが設定されている場合、商品の価格が範囲内かどうかを判定する。"""
     if not PRICE_RANGE_BOUNDS:
         return True
     price_num = product.get('price_num')
@@ -396,12 +491,11 @@ def price_in_range(product):
 # ✂️  文字数カウント（Xの仕様: URLは23文字固定扱い）
 # ================================================================
 
-URL_CHAR_COUNT = 23  # XはURLを常に23文字としてカウント
+import re
+URL_CHAR_COUNT = 23
+X_LIMIT = 280
 
 def x_len(text: str) -> int:
-    """Xの文字数カウントルールに準拠した文字数を返す。
-    URLはhttps://またはhttp://で始まる文字列を23文字として計算。"""
-    import re
     url_pattern = re.compile(r'https?://\S+')
     count = 0
     last_end = 0
@@ -413,17 +507,26 @@ def x_len(text: str) -> int:
     return count
 
 
-X_LIMIT = 280  # Xの投稿上限文字数
+# ================================================================
+# 📝 投稿文ビルダー（hook + cv の2本セット）
+# ================================================================
 
+def build_x_posts(product):
+    """
+    1商品あたり2本の投稿を生成して返す。
 
-def build_x_post(product):
-    """ポスト1（紹介）とポスト2（詳細+URL）の2本構成でスレッドテキストを返す。
-    両ポストともXの280文字制限を超えないように自動調整する。"""
+    hook_post: アフィリリンクなし。FANZAの誤解を解いてフォロワー・インプレ獲得を狙う。
+               朝〜昼の投稿に向く。
+    cv_post:   アフィリリンクあり。温まったフォロワーに購買を促す。
+               夜の投稿に向く。新規ユーザー獲得（新規報酬）も意識した文章。
+    """
     hashtags  = HASHTAG_MAP.get(DMM_FLOOR, HASHTAG_MAP['default'])
     raw_url   = clean_url(product['affiliate_url'])
     short_url = shorten_url(raw_url)
     act_tags  = actor_tags(product['actors'])
-    copy      = get_copy_ai(
+
+    hook_copy = get_hook_ai(product['title'], product['genres'], product.get('maker', ''))
+    cv_copy   = get_cv_ai(
         product['title'],
         product['genres'],
         product.get('maker', ''),
@@ -436,28 +539,65 @@ def build_x_post(product):
     review_avg   = product.get('review_avg')
     review_count = product.get('review_count')
 
-    # ── レビュー・メーカー文字列 ─────────────────────────────────
+    # ── レビュー・メーカー情報 ────────────────────────────────────
     reason_parts = []
     if review_avg and review_count and review_count >= 5:
         reason_parts.append(f'レビュー平均{review_avg}（{review_count}件）')
     if product.get('maker'):
         reason_parts.append(f"{product['maker']}制作")
 
+    # CTAを状況で切り替え（新規ユーザーへの訴求を強調）
     if DMM_FLOOR == 'doujin':
         cta = '作品ページを確認してみて'
+        newbie_nudge = ''
     else:
         if review_count and review_count >= 20:
             cta = 'サンプルで確認してから決めて'
         elif product.get('price_num') and product['price_num'] <= 1000:
-            cta = 'この価格なら試す価値あり'
+            cta = 'この価格なら気軽に試せる'
         else:
             cta = 'サンプルだけでも見てみて'
+        # FANZAの新規ユーザー向けの補足（新規報酬狙い）
+        newbie_nudge = 'FANZA初めてでも登録5分、すぐ見られます'
 
-    # ── ポスト2（詳細情報＋URL）────────────────────────────────────
-    def build_post2(genre_limit):
+    # ── hook投稿（アフィリリンクなし）───────────────────────────
+    def build_hook():
+        # hookにはURLを入れない（売り込み感ゼロ）
+        return hook_copy
+
+    hook_post = build_hook()
+    # hookはURLなしなので文字数オーバーはほぼないが念のためチェック
+    if x_len(hook_post) > X_LIMIT:
+        hook_post = hook_copy.split('\n')[0] + '\n' + hook_copy.split('\n')[1] if '\n' in hook_copy else hook_copy[:100]
+
+    # ── cv投稿ポスト1（タイトル＋コピー＋URL）──────────────────
+    def truncate_title(max_len):
+        return title[:max_len] + '…' if len(title) > max_len else title
+
+    def build_cv1(display_title, include_actor):
+        lines = [f'📖 {display_title}', '', cv_copy, short_url]
+        if include_actor and act_tags:
+            lines.insert(-1, f'👤 {act_tags}')
+        return '\n'.join(lines)
+
+    cv1 = build_cv1(title, include_actor=True)
+    if x_len(cv1) > X_LIMIT:
+        cv1 = build_cv1(title, include_actor=False)
+    if x_len(cv1) > X_LIMIT:
+        cv1 = build_cv1(truncate_title(40), include_actor=False)
+    if x_len(cv1) > X_LIMIT:
+        cv1 = build_cv1(truncate_title(20), include_actor=False)
+    if x_len(cv1) > X_LIMIT:
+        cv_line1 = cv_copy.split('\n')[0]
+        cv1 = f'📖 {truncate_title(20)}\n\n{cv_line1}\n{short_url}'
+
+    # ── cv投稿ポスト2（詳細情報＋URL）───────────────────────────
+    def build_cv2(genre_limit, include_nudge):
         lines = ['📌 気に入ったら本編はこちら👇']
         if reason_parts:
             lines.append('、'.join(reason_parts) + 'の作品。' + cta)
+        if include_nudge and newbie_nudge:
+            lines.append(f'💡 {newbie_nudge}')
         if product['price']:
             lines.append(f'💰 {product["price"]}')
         if product['genres'] and genre_limit > 0:
@@ -466,56 +606,22 @@ def build_x_post(product):
         lines.append(hashtags)
         return '\n'.join(lines)
 
-    post2 = build_post2(genre_limit=3)
-    if x_len(post2) > X_LIMIT:
-        post2 = build_post2(genre_limit=1)
-    if x_len(post2) > X_LIMIT:
-        post2 = build_post2(genre_limit=0)
+    cv2 = build_cv2(genre_limit=3, include_nudge=True)
+    if x_len(cv2) > X_LIMIT:
+        cv2 = build_cv2(genre_limit=3, include_nudge=False)
+    if x_len(cv2) > X_LIMIT:
+        cv2 = build_cv2(genre_limit=1, include_nudge=False)
+    if x_len(cv2) > X_LIMIT:
+        cv2 = build_cv2(genre_limit=0, include_nudge=False)
 
-    # ── ポスト1（タイトル＋コピー＋URL）────────────────────────────
-    def build_post1(display_title, include_actor):
-        lines = [f'📖 {display_title}', '', copy, short_url]
-        if include_actor and act_tags:
-            lines.insert(-1, f'👤 {act_tags}')
-        return '\n'.join(lines)
+    return hook_post, cv1, cv2
 
-    # タイトル長を段階的に縮めて280字以内に収める
-    def truncate_title(max_len):
-        if len(title) > max_len:
-            return title[:max_len] + '…'
-        return title
-
-    post1 = build_post1(title, include_actor=True)
-    if x_len(post1) > X_LIMIT:
-        post1 = build_post1(title, include_actor=False)
-    if x_len(post1) > X_LIMIT:
-        post1 = build_post1(truncate_title(40), include_actor=False)
-    if x_len(post1) > X_LIMIT:
-        post1 = build_post1(truncate_title(20), include_actor=False)
-
-    # それでも超える場合はコピーを1行目だけに切り詰める
-    if x_len(post1) > X_LIMIT:
-        copy_line1 = copy.split('\n')[0]
-        post1 = f'📖 {truncate_title(20)}\n\n{copy_line1}\n{short_url}'
-
-    return post1, post2
 
 # ================================================================
 # 💾 保存先を決定
 # ================================================================
 
 def get_save_dir():
-    """
-    保存先の優先順位:
-    1. 環境変数 SAVE_DIR で明示指定されたパス
-    2. GitHub Actions 環境 (SAVE_TO_REPO=true) → カレントディレクトリ（後でoutputsへ移動）
-    3. デスクトップ（ローカル実行時）
-       - ~/Desktop
-       - ~/OneDrive/Desktop
-       - ~/OneDrive/デスクトップ
-       - ~/デスクトップ
-    4. カレントディレクトリ（フォールバック）
-    """
     explicit = os.environ.get('SAVE_DIR', '').strip()
     if explicit:
         Path(explicit).mkdir(parents=True, exist_ok=True)
@@ -556,7 +662,12 @@ def save_posts(all_sections):
         f.write(f"# フロア: {DMM_FLOOR} / モード: {DMM_SORT_MODE}\n")
         f.write(f"# 価格フィルター: {DMM_PRICE_RANGE}\n")
         f.write(f"# 取得開始: {DMM_OFFSET}件目 / 各ソート{FETCH_COUNT}件\n")
-        f.write(f"# 総投稿数: {total}件\n")
+        f.write(f"# 総商品数: {total}件（1商品=hook1本+cv2本の計3投稿）\n")
+        f.write("=" * 60 + "\n")
+        f.write("【投稿戦略】\n")
+        f.write("  hook投稿  → URLなし。朝〜昼に投稿。バズ・フォロワー獲得目的。\n")
+        f.write("  cv投稿1,2 → URLあり。夜（21〜24時）に投稿。購買促進目的。\n")
+        f.write("              FANZA初回購入者には新規紹介料（最大5,240円）も発生。\n")
         f.write("=" * 60 + "\n\n")
 
         for sort_label, posts in all_sections:
@@ -564,28 +675,34 @@ def save_posts(all_sections):
             f.write(f"【{sort_label}】{len(posts)}件\n")
             f.write(f"{'=' * 60}\n\n")
 
-            for i, (product, thread) in enumerate(posts, 1):
-                post1, post2 = thread
-                p1_xlen = x_len(post1)
-                p2_xlen = x_len(post2)
-                over1 = ' ⚠️ 超過' if p1_xlen > X_LIMIT else ''
-                over2 = ' ⚠️ 超過' if p2_xlen > X_LIMIT else ''
+            for i, (product, triplet) in enumerate(posts, 1):
+                hook_post, cv1, cv2 = triplet
+                h_len  = x_len(hook_post)
+                c1_len = x_len(cv1)
+                c2_len = x_len(cv2)
+                over_h  = ' ⚠️ 超過' if h_len > X_LIMIT else ''
+                over_c1 = ' ⚠️ 超過' if c1_len > X_LIMIT else ''
+                over_c2 = ' ⚠️ 超過' if c2_len > X_LIMIT else ''
+
                 f.write(f"--- {sort_label} {i}/{len(posts)} ---\n")
                 f.write(f"商品名: {product['title']}\n")
-                f.write(f"文字数(X換算): ポスト1={p1_xlen}文字{over1} / ポスト2={p2_xlen}文字{over2}\n")
+                f.write(f"文字数(X換算): hook={h_len}字{over_h} / cv1={c1_len}字{over_c1} / cv2={c2_len}字{over_c2}\n")
                 f.write(f"URL確認: {product['affiliate_url']}\n")
                 if product.get('sample_movie_url'):
                     f.write(f"サンプル動画: {product['sample_movie_url']}\n")
                 f.write("-" * 40 + "\n")
-                f.write("【ポスト1】\n")
-                f.write(post1)
-                f.write("\n\n【ポスト2（スレッド続き）】\n")
-                f.write(post2)
+                f.write("【hook投稿（朝〜昼・URLなし・バズ狙い）】\n")
+                f.write(hook_post)
+                f.write("\n\n【cv投稿1（夜・タイトル＋コピー）】\n")
+                f.write(cv1)
+                f.write("\n\n【cv投稿2（cv1のスレッド続き・詳細＋URL）】\n")
+                f.write(cv2)
                 f.write("\n\n")
 
     print(f'\n💾 保存完了！')
     print(f'📄 ファイル: {filepath}')
     return filepath
+
 
 # ================================================================
 # 🚀 メイン実行
@@ -612,16 +729,17 @@ for sort_key, sort_label in SORT_LIST:
         print(f'  ⚠️  [{sort_label}] 価格条件に合う商品がありませんでした。スキップします。')
         continue
 
-    print(f'  📝 [{sort_label}] 投稿文を生成中...')
+    print(f'  📝 [{sort_label}] 投稿文を生成中（hook + cv 各1本ずつ）...')
 
     posts = []
     for p in products:
-        post1, post2 = build_x_post(p)
-        p1_xlen = x_len(post1)
-        p2_xlen = x_len(post2)
-        warn = ' ⚠️ 超過あり' if p1_xlen > X_LIMIT or p2_xlen > X_LIMIT else ''
-        posts.append((p, (post1, post2)))
-        print(f"    ✅ [P1:{p1_xlen}字 / P2:{p2_xlen}字{warn}] {p['title'][:30]}...")
+        hook_post, cv1, cv2 = build_x_posts(p)
+        h_len  = x_len(hook_post)
+        c1_len = x_len(cv1)
+        c2_len = x_len(cv2)
+        warn = ' ⚠️ 超過あり' if any(l > X_LIMIT for l in [h_len, c1_len, c2_len]) else ''
+        posts.append((p, (hook_post, cv1, cv2)))
+        print(f"    ✅ [hook:{h_len}字 / cv1:{c1_len}字 / cv2:{c2_len}字{warn}] {p['title'][:25]}...")
 
     all_sections.append((sort_label, posts))
 
@@ -633,14 +751,17 @@ first_label, first_posts = all_sections[0]
 print('\n' + '=' * 60)
 print(f'📋 投稿文プレビュー（{first_label} 1件目）')
 print('=' * 60)
-print('【ポスト1】')
-print(first_posts[0][1][0])
-print('\n【ポスト2（スレッド続き）】')
-print(first_posts[0][1][1])
+hook_post, cv1, cv2 = first_posts[0][1]
+print('【hook投稿（朝〜昼・URLなし）】')
+print(hook_post)
+print('\n【cv投稿1（夜・タイトル＋コピー）】')
+print(cv1)
+print('\n【cv投稿2（cv1のスレッド続き）】')
+print(cv2)
 print('=' * 60)
 
 save_posts(all_sections)
 
 total = sum(len(p) for _, p in all_sections)
-print(f'\n✅ 完了！合計 {total} 件の投稿文を保存しました。')
-print('テキストファイルを開いてXに手動投稿してください。')
+print(f'\n✅ 完了！合計 {total} 件の商品の投稿文を保存しました（各商品3投稿セット）。')
+print('hook投稿は朝〜昼、cv投稿は夜（21〜24時）に投稿するのがおすすめです。')
