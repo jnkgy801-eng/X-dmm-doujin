@@ -122,92 +122,68 @@ HASHTAG_MAP = {
 }
 
 # ================================================================
-# 🤖 AI動的コピー生成（タイトル・ジャンルに合わせた人間味ある一言）
+# 🤖 AI動的コピー生成（購買意欲を高める2行構成）
 # ================================================================
 
-# Anthropic APIキー（環境変数から取得）
 ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY', '')
 
 # AI生成が使えない場合のフォールバック用ジャンル別テンプレート
+# （1行目：共感・2行目：購買背中押し の2行構成）
 COPY_TEMPLATES_BY_GENRE = {
     'ラブコメ': [
-        "ニヤニヤが止まらない展開で、深夜に読み始めたら止まれなくなった😂",
-        "このドキドキ感、ラブコメ好きにはわかってもらえると思う💕",
-        "設定が好みすぎてズルい。こういうの待ってた",
+        "この設定、好きな人には刺さりすぎる内容だった💕\nラブコメ好きなら後悔しない一作です",
+        "ニヤニヤが止まらない展開で深夜に読み始めたら止まれなかった\nレビューも高評価多数で安定感あり",
     ],
     '巨乳': [
-        "ボリューム感とキャラの可愛さが両立してる作品、意外と少ない",
-        "絵柄がツボすぎた。これ系好きな人には素直におすすめしたい",
-        "こういう作品、定期的に出てきてほしいと思う派です",
+        "ボリューム感とキャラの可愛さが両立してる、意外と少ないタイプ\nこのジャンル好きなら試す価値あり",
+        "絵柄がツボすぎた。これ系好きな人には素直におすすめしたい\n価格も手が出しやすい範囲",
     ],
     '人妻・主婦': [
-        "こういう背徳感のある設定、なかなか抜け出せないんだよな😅",
-        "人妻もので外れ引いたことほぼないけど、これも安定してた",
-        "禁断感の演出がうまくて、読み終わった後に罪悪感ある系😇",
+        "こういう背徳感のある設定、なかなか抜け出せないんだよな😅\n人妻もので外れ引いたことほぼない、これも安定してた",
+        "禁断感の演出がうまくて読み終わった後に罪悪感ある系😇\nレビュー評価も高く、買って損はない",
     ],
     '制服': [
-        "学園ものは設定の作り込みで全然変わるけど、これはちゃんとしてる",
-        "このジャンルの安定感ってあるよね。今回も期待を裏切らなかった",
-        "制服好きにはそのまま刺さる構成です✏️",
+        "学園ものは設定の作り込みで全然変わるけど、これはちゃんとしてる\n制服好きにはそのまま刺さる構成です✏️",
+        "このジャンルの安定感ってあるよね。今回も期待を裏切らなかった\n迷ってるなら詳細ページで確認してみて",
     ],
     '熟女': [
-        "大人の色気って絵力が要るけど、これはそこをちゃんとクリアしてる",
-        "熟女ものでこの完成度は普通に高いと思う",
-        "このジャンル好きな人なら間違いなく刺さる作品です",
+        "大人の色気って絵力が要るけど、これはそこをちゃんとクリアしてる\n熟女もので完成度高いのは貴重、おすすめです",
+        "このジャンル好きな人なら間違いなく刺さる作品です\n高評価レビューが多く、信頼できる一本",
     ],
     '近親相姦': [
-        "タブー設定が好きな人には刺さる構成。引きが強くて一気読みした",
-        "こういう禁断系、設定だけじゃなくてストーリーもちゃんとしてる",
-        "後味がクセになる系だった…🌙",
+        "タブー設定が好きな人には刺さる構成。引きが強くて一気読みした\n後味がクセになる系、詳細で確認してみて",
     ],
     '寝取り・寝取られ・NTR': [
-        "NTR好きにはわかる、この「見てはいけないのに見てしまう」感覚",
-        "メンタルにくる系が好きな人に刺さる内容です👁",
-        "NTR耐性ある人なら最後まで引き込まれると思う",
+        "NTR好きにはわかる、この「見てはいけないのに見てしまう」感覚\nNTR耐性ある人なら最後まで引き込まれると思う",
     ],
     '調教': [
-        "展開の流れが読んでてテンション上がる構成だった🔥",
-        "このジャンルって進行の緩急が大事だと思うけど、これはうまい",
-        "こういう一作、定期的に読みたくなる系です",
+        "展開の流れが読んでてテンション上がる構成だった🔥\n進行の緩急がうまい。このジャンル好きなら損しない",
     ],
     '中出し': [
-        "内容の密度がしっかりある作品。薄いやつとは違う",
-        "このジャンルでこの完成度は、素直に良かったと言える",
-        "描写の丁寧さが好きだった。雑なの多い中でこれは当たりだと思う",
+        "内容の密度がしっかりある作品。薄いやつとは違う\nこのジャンルでこの完成度は当たりだと思う",
     ],
     '異種姦': [
-        "ファンタジー設定が好きな人は世界観から楽しめると思う🐉",
-        "異種姦ものって世界観の作り込みで全然変わるけど、これは好きな部類",
-        "設定の独自性があって、読んでて飽きなかった",
+        "ファンタジー設定が好きな人は世界観から楽しめると思う🐉\n設定の独自性があって、これは好きな部類",
     ],
     'VR': [
-        "VRで見るとこれが一番没入感あると思う。画質の差が出る作品",
-        "VR専用に作られてる感がちゃんとあって、臨場感が違う",
-        "8K対応なら画質の差を体感できる。VR持ちには普通におすすめ",
+        "VR専用に作られてる感がちゃんとあって、臨場感が違う\n8K対応なら画質の差を体感できる。VR持ちには普通におすすめ",
     ],
     '4時間以上作品': [
-        "ボリューム系が好きな人には満足度が高い一本だと思う",
-        "長尺作品でハズレ引きたくない人に向いてる内容です",
-        "コスパ重視で探してる人に刺さる作品",
+        "ボリューム系が好きな人には満足度が高い一本だと思う\nコスパ重視で探してる人に刺さる作品",
     ],
 }
 
 COPY_TEMPLATES_FALLBACK = [
-    "タイトルで気になった人は、とりあえず詳細だけ覗いてみて",
-    "深夜にひっそり楽しむやつ、これです🌙",
-    "このジャンル好きな人には刺さると思う",
-    "こういうの待ってた人、いるんじゃないかな",
-    "見てみたら予想より良かった系の作品",
-    "タイトルの雰囲気通りの内容で、期待は裏切らない",
-    "このジャンルが好きなら後悔しない内容だと思う",
-    "説明より作品ページ見た方が早い。気になるなら覗いてみて",
-    "深夜のお供にちょうどいい密度感です🌙",
-    "興味あるなら損はしない一作だと思う",
+    "このジャンル好きな人には刺さると思う\n詳細ページで確認してから決めてみて",
+    "深夜のお供にちょうどいい密度感🌙\nレビュー評価も高く、選んで損はない",
+    "タイトルの雰囲気通りの内容で、期待は裏切らない\n気になるなら詳細だけでも覗いてみて",
+    "こういうの待ってた人、いるんじゃないかな\n価格と内容のバランスが良い作品です",
+    "説明より作品ページ見た方が早い\n興味あるなら損はしない一作だと思う",
 ]
 
 
-def get_copy_ai(title: str, genres: list, maker: str, price: str) -> str:
-    """Claude APIを使ってタイトル・ジャンルに合った自然な複数行コメントを生成する。
+def get_copy_ai(title: str, genres: list, maker: str, price: str, review_avg, review_count) -> str:
+    """Claude APIを使って購買意欲を高める2行コメントを生成する。
     API失敗時はフォールバックテンプレートを返す。"""
     if not ANTHROPIC_API_KEY:
         return _get_copy_fallback(genres)
@@ -216,25 +192,34 @@ def get_copy_ai(title: str, genres: list, maker: str, price: str) -> str:
     maker_str = maker if maker else '不明'
     price_str = price if price else '不明'
 
+    # レビュー情報を文字列化
+    review_str = ''
+    if review_avg and review_count and review_count >= 5:
+        review_str = f'平均{review_avg}点（{review_count}件）'
+
     if DMM_FLOOR == 'doujin':
         floor_label = '同人誌・同人CG集'
         no_sample_note = '- 「サンプルを見て」「試し読み」などサンプル動画・試読を促す表現は使わない（同人作品のため）\n'
+        cta_note = '- 2行目はジャンルが好きな人に「買う価値がある」と感じさせる理由を一言で\n'
     else:
         floor_label = 'AV・動画'
         no_sample_note = ''
+        cta_note = '- 2行目は「レビュー評価」「価格」「サンプルで確認を」のうち自然に使えるものを選んで購入の背中を押す\n'
 
     prompt = (
         f"{floor_label}のX(Twitter)アフィリエイト投稿の「紹介本文」を作ってください。\n\n"
         f"作品タイトル：{title}\n"
         f"ジャンル：{genre_str}\n"
         f"サークル/メーカー：{maker_str}\n"
-        f"価格：{price_str}\n\n"
+        f"価格：{price_str}\n"
+        f"レビュー：{review_str if review_str else 'なし'}\n\n"
         f"【条件】\n"
-        f"- 全体で60〜90文字（改行込み）\n"
-        f"- 2〜3行構成。1行目は作品の雰囲気や設定への反応、2行目以降はジャンル的な見どころや刺さるポイント\n"
+        f"- 必ず2行構成、合計で50〜80文字（改行込み）\n"
+        f"- 1行目（25〜40文字）：ジャンルや設定への共感・反応。そのジャンルが好きな人が普通につぶやくような自然な口語体\n"
+        f"- 2行目（25〜40文字）：今すぐ見たい・買いたいと思わせる具体的な理由。レビュー件数や評価点があれば積極的に使う\n"
+        f"{cta_note}"
         f"- AIっぽい宣伝文句（「話題沸騰中」「クオリティに驚く」「ファン必見」「期間限定」等）は絶対使わない\n"
-        f"- そのジャンルが好きな人が普通につぶやくような、自然な口語体\n"
-        f"- 絵文字は全体で2〜3個まで。「！」「✨」の多用NG\n"
+        f"- 絵文字は全体で0〜2個まで。「！」「✨」の多用NG\n"
         f"- タイトルやジャンル・設定の内容に具体的に言及する\n"
         f"{no_sample_note}"
         f"- 出力は本文テキストのみ。前置きや説明・カギカッコは不要。"
@@ -257,7 +242,7 @@ def get_copy_ai(title: str, genres: list, maker: str, price: str) -> str:
         )
         data = resp.json()
         text = data.get('content', [{}])[0].get('text', '').strip()
-        if text and len(text) <= 120:
+        if text and len(text) <= 100:
             return text
     except Exception as e:
         print(f'    ⚠️  AI生成エラー（フォールバック使用）: {e}')
@@ -388,7 +373,7 @@ def actor_tags(actors):
 
 
 def genre_tags(genres):
-    """ジャンル名（人妻・主婦、巨乳など）をハッシュタグ形式に変換する。"""
+    """ジャンル名をハッシュタグ形式に変換する。"""
     return '　'.join('#' + g.replace(' ', '').replace('　', '') for g in genres if g)
 
 
@@ -407,69 +392,111 @@ def price_in_range(product):
     return True
 
 
+# ================================================================
+# ✂️  文字数カウント（Xの仕様: URLは23文字固定扱い）
+# ================================================================
+
+URL_CHAR_COUNT = 23  # XはURLを常に23文字としてカウント
+
+def x_len(text: str) -> int:
+    """Xの文字数カウントルールに準拠した文字数を返す。
+    URLはhttps://またはhttp://で始まる文字列を23文字として計算。"""
+    import re
+    url_pattern = re.compile(r'https?://\S+')
+    count = 0
+    last_end = 0
+    for m in url_pattern.finditer(text):
+        count += len(text[last_end:m.start()])
+        count += URL_CHAR_COUNT
+        last_end = m.end()
+    count += len(text[last_end:])
+    return count
+
+
+X_LIMIT = 280  # Xの投稿上限文字数
+
+
 def build_x_post(product):
-    """ポスト1（紹介）とポスト2（詳細+URL）の2本構成でスレッドテキストを返す。"""
-    hashtags     = HASHTAG_MAP.get(DMM_FLOOR, HASHTAG_MAP['default'])
-    raw_url      = clean_url(product['affiliate_url'])
-    short_url    = shorten_url(raw_url)
-    act_tags     = actor_tags(product['actors'])
-    copy         = get_copy_ai(product['title'], product['genres'], product.get('maker', ''), product['price'])
+    """ポスト1（紹介）とポスト2（詳細+URL）の2本構成でスレッドテキストを返す。
+    両ポストともXの280文字制限を超えないように自動調整する。"""
+    hashtags  = HASHTAG_MAP.get(DMM_FLOOR, HASHTAG_MAP['default'])
+    raw_url   = clean_url(product['affiliate_url'])
+    short_url = shorten_url(raw_url)
+    act_tags  = actor_tags(product['actors'])
+    copy      = get_copy_ai(
+        product['title'],
+        product['genres'],
+        product.get('maker', ''),
+        product['price'],
+        product.get('review_avg'),
+        product.get('review_count'),
+    )
 
     title        = product['title']
     review_avg   = product.get('review_avg')
     review_count = product.get('review_count')
 
-    # ── レビュー文字列 ────────────────────────────────────────────
-    review_str = ''
+    # ── レビュー・メーカー文字列 ─────────────────────────────────
+    reason_parts = []
     if review_avg and review_count and review_count >= 5:
-        review_str = f'レビュー平均{review_avg}（{review_count}件）の高評価'
+        reason_parts.append(f'レビュー平均{review_avg}（{review_count}件）')
+    if product.get('maker'):
+        reason_parts.append(f"{product['maker']}制作")
+
+    if DMM_FLOOR == 'doujin':
+        cta = '作品ページを確認してみて'
+    else:
+        if review_count and review_count >= 20:
+            cta = 'サンプルで確認してから決めて'
+        elif product.get('price_num') and product['price_num'] <= 1000:
+            cta = 'この価格なら試す価値あり'
+        else:
+            cta = 'サンプルだけでも見てみて'
 
     # ── ポスト2（詳細情報＋URL）────────────────────────────────────
     def build_post2(genre_limit):
         lines = ['📌 気に入ったら本編はこちら👇']
-        # 購入後押し（レビューがあればレビュー、なければシンプルな一言）
-        if review_str or product.get('maker'):
-            reason_parts = []
-            if review_str:
-                reason_parts.append(review_str)
-            if product.get('maker'):
-                reason_parts.append(f"{product['maker']}制作")
-            # doujinはサンプル動画なし → 「作品ページを見てみて」に変える
-            cta = '作品ページを見てみて' if DMM_FLOOR == 'doujin' else 'サンプルだけでも見てみて'
-            lines.append('、'.join(reason_parts) + 'の作品。気になるなら' + cta)
-        # 価格
+        if reason_parts:
+            lines.append('、'.join(reason_parts) + 'の作品。' + cta)
         if product['price']:
             lines.append(f'💰 {product["price"]}')
-        # ジャンルタグ
-        if product['genres']:
+        if product['genres'] and genre_limit > 0:
             lines.append(f'🏷 {genre_tags(product["genres"][:genre_limit])}')
         lines.append(short_url)
         lines.append(hashtags)
         return '\n'.join(lines)
 
     post2 = build_post2(genre_limit=3)
-    if len(post2) > 280:
+    if x_len(post2) > X_LIMIT:
         post2 = build_post2(genre_limit=1)
+    if x_len(post2) > X_LIMIT:
+        post2 = build_post2(genre_limit=0)
 
-    # ── ポスト1（タイトル＋コメント＋URL）────────────────────────
-    def build_post1(display_title):
-        lines = [
-            f'📖 {display_title}',
-            '',
-            copy,
-            short_url,
-        ]
-        if act_tags:
+    # ── ポスト1（タイトル＋コピー＋URL）────────────────────────────
+    def build_post1(display_title, include_actor):
+        lines = [f'📖 {display_title}', '', copy, short_url]
+        if include_actor and act_tags:
             lines.insert(-1, f'👤 {act_tags}')
         return '\n'.join(lines)
 
-    post1 = build_post1(title)
-    if len(post1) > 280:
-        short_title = title[:38] + '…' if len(title) > 38 else title
-        post1 = build_post1(short_title)
-    if len(post1) > 280:
-        # 出演者タグを外してもオーバーなら本文だけにする
-        post1 = f'📖 {title[:38]}…\n\n{copy}\n{short_url}'
+    # タイトル長を段階的に縮めて280字以内に収める
+    def truncate_title(max_len):
+        if len(title) > max_len:
+            return title[:max_len] + '…'
+        return title
+
+    post1 = build_post1(title, include_actor=True)
+    if x_len(post1) > X_LIMIT:
+        post1 = build_post1(title, include_actor=False)
+    if x_len(post1) > X_LIMIT:
+        post1 = build_post1(truncate_title(40), include_actor=False)
+    if x_len(post1) > X_LIMIT:
+        post1 = build_post1(truncate_title(20), include_actor=False)
+
+    # それでも超える場合はコピーを1行目だけに切り詰める
+    if x_len(post1) > X_LIMIT:
+        copy_line1 = copy.split('\n')[0]
+        post1 = f'📖 {truncate_title(20)}\n\n{copy_line1}\n{short_url}'
 
     return post1, post2
 
@@ -489,19 +516,16 @@ def get_save_dir():
        - ~/デスクトップ
     4. カレントディレクトリ（フォールバック）
     """
-    # 環境変数で明示指定
     explicit = os.environ.get('SAVE_DIR', '').strip()
     if explicit:
         Path(explicit).mkdir(parents=True, exist_ok=True)
         return explicit
 
-    # GitHub Actions上での実行（outputs/フォルダに保存）
     if os.environ.get('SAVE_TO_REPO', '').lower() == 'true':
         out = Path('outputs')
         out.mkdir(exist_ok=True)
         return str(out)
 
-    # ローカル実行時はデスクトップを探す
     try:
         home = Path.home()
         for path in [
@@ -542,9 +566,13 @@ def save_posts(all_sections):
 
             for i, (product, thread) in enumerate(posts, 1):
                 post1, post2 = thread
+                p1_xlen = x_len(post1)
+                p2_xlen = x_len(post2)
+                over1 = ' ⚠️ 超過' if p1_xlen > X_LIMIT else ''
+                over2 = ' ⚠️ 超過' if p2_xlen > X_LIMIT else ''
                 f.write(f"--- {sort_label} {i}/{len(posts)} ---\n")
                 f.write(f"商品名: {product['title']}\n")
-                f.write(f"文字数: ポスト1={len(post1)}文字 / ポスト2={len(post2)}文字\n")
+                f.write(f"文字数(X換算): ポスト1={p1_xlen}文字{over1} / ポスト2={p2_xlen}文字{over2}\n")
                 f.write(f"URL確認: {product['affiliate_url']}\n")
                 if product.get('sample_movie_url'):
                     f.write(f"サンプル動画: {product['sample_movie_url']}\n")
@@ -589,8 +617,11 @@ for sort_key, sort_label in SORT_LIST:
     posts = []
     for p in products:
         post1, post2 = build_x_post(p)
+        p1_xlen = x_len(post1)
+        p2_xlen = x_len(post2)
+        warn = ' ⚠️ 超過あり' if p1_xlen > X_LIMIT or p2_xlen > X_LIMIT else ''
         posts.append((p, (post1, post2)))
-        print(f"    ✅ [ポスト1: {len(post1)}文字 / ポスト2: {len(post2)}文字] {p['title'][:30]}...")
+        print(f"    ✅ [P1:{p1_xlen}字 / P2:{p2_xlen}字{warn}] {p['title'][:30]}...")
 
     all_sections.append((sort_label, posts))
 
